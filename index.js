@@ -48,8 +48,8 @@ async function main() {
         for (let index = 0; index < sortedTweets.length; index++) {
             const tweet = sortedTweets[index].tweet;
             const tweet_createdAt = new Date(tweet.created_at).toISOString();
-            // if (tweet.id != "1586630236405469189") 
-            //     continue;
+            if (tweet.id != "1586765266427564037")
+                continue;
             console.log(`Parse tweet id '${tweet.id}'`);
             console.log(` Created at ${tweet_createdAt}`);
             console.log(` Full text '${tweet.full_text}'`);
@@ -64,6 +64,41 @@ async function main() {
             if (tweet.full_text.startsWith("RT ")) {
                 console.log("Discarded (start with RT)");
                 continue;
+            }
+            if (tweet.entities?.media) {
+                for (let index = 0; index < tweet.entities.media.length; index++) {
+                    const media = tweet.entities.media[index];
+                    if (media?.type === "photo") {
+                        //"C:\Temp\twitter-archive-2022-10-31\data\tweets_media\1586765266427564037-FgVSmZOXwAEAbiT.jpg"
+                        const i = media?.media_url.lastIndexOf("/");
+                        const it = media?.media_url.lastIndexOf(".");
+                        const fileType = media?.media_url.substring(it + 1);
+                        let mimeType = "";
+                        switch (fileType) {
+                            case "png":
+                                mimeType = "image/png";
+                                break;
+                            case "jpg":
+                                mimeType = "image/jpeg";
+                                break;
+                            default:
+                                console.error("Unsopported photo file type" + fileType);
+                                break;
+                        }
+                        if (mimeType.length <= 0)
+                            continue;
+                        const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
+                        console.log(mediaFilename);
+                        const imageBuffer = fs_1.default.readFileSync(mediaFilename);
+                        const blobRecord = await agent.uploadBlob(imageBuffer.toString("base64"), {
+                            // headers: {
+                            //     "Content-Type": mimeType
+                            // },
+                            encoding: "base64"
+                        });
+                        console.log(blobRecord);
+                    }
+                }
             }
             const rt = new api_1.RichText({
                 text: tweet.full_text
