@@ -5,12 +5,15 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
+    "compile": "npx tsc",
+    "compile_w": "npx tsc -w",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "follow-redirects": "^1.15.6",
-    "urijs": "^1.19.11"
+    "@atproto/api": "^0.12.2",
+    "dotenv": "^16.4.5",
+    "process": "^0.11.10"
   }
 }
