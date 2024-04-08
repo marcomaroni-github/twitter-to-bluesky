@@ -1,0 +1,16 @@
+{
+  "name": "twittertobluesky",
+  "version": "0.0.1",
+  "description": "Import tweet archive to a Bluesky account",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "follow-redirects": "^1.15.6",
+    "urijs": "^1.19.11"
+  }
+}
