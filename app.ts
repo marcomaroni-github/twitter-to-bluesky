@@ -1,22 +1,33 @@
 import * as dotenv from 'dotenv';
 import FS from 'fs';
 import * as process from 'process';
-import { text } from 'stream/consumers';
 
 import { BskyAgent, RichText } from '@atproto/api';
 
 dotenv.config();
 
-// Create a Bluesky Agent 
 const agent = new BskyAgent({
     service: 'https://bsky.social',
 })
 
+const SIMULATE = process.env.SIMULATE === "1";
+
+const API_DELAY = 3000;
+
+let MIN_DATE: Date | undefined = undefined;
+if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
+    MIN_DATE = new Date(process.env.MIN_DATE as string);
+
+let MAX_DATE: Date | undefined = undefined;
+if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
+    MAX_DATE = new Date(process.env.MAX_DATE as string);
 
 async function main() {
+    console.log(`Importa started at ${new Date().toISOString()}`)
 
     const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.json");
     const tweets = JSON.parse(fTweets.toString());
+    let importedTweet = 0;
     if (tweets != null && tweets.length > 0) {
         const sortedTweets = tweets.sort((a, b) => {
             let ad = new Date(a.tweet.created_at).getTime();
@@ -28,7 +39,14 @@ async function main() {
 
         for (let index = 0; index < sortedTweets.length; index++) {
             const tweet = sortedTweets[index].tweet;
-            const tweet_createdAt = new Date(tweet.created_at).toISOString();
+            const tweetDate = new Date(tweet.created_at);
+            const tweet_createdAt = tweetDate.toISOString();
+
+            //this cheks assume that the array is sorted by date (first the oldest)
+            if (MIN_DATE != undefined && tweetDate < MIN_DATE)
+                continue; 
+            if (MAX_DATE != undefined && tweetDate > MAX_DATE)
+                break;
 
             // if (tweet.id != "1586765266427564037")
             //     continue;
@@ -52,10 +70,10 @@ async function main() {
 
             let tweetWithEmbeddedVideo = false;
             let embeddedImage = [] as any;
-            if (tweet.entities?.media) {
+            if (tweet.extended_entities?.media) {
 
-                for (let index = 0; index < tweet.entities.media.length; index++) {
-                    const media = tweet.entities.media[index];
+                for (let index = 0; index < tweet.extended_entities.media.length; index++) {
+                    const media = tweet.extended_entities.media[index];
 
                     if (media?.type === "photo") {
                         const i = media?.media_url.lastIndexOf("/");
@@ -79,19 +97,21 @@ async function main() {
                         const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
                         const imageBuffer = FS.readFileSync(mediaFilename);
 
-                        const blobRecord = await agent.uploadBlob(imageBuffer, {
-                            encoding: mimeType
-                        });
+                        if (!SIMULATE) {
+                            const blobRecord = await agent.uploadBlob(imageBuffer, {
+                                encoding: mimeType
+                            });
 
-                        embeddedImage.push({
-                            alt: "",
-                            image: {
-                                $type: "blob",
-                                ref: blobRecord.data.blob.ref,
-                                mimeType: mimeType,
-                                size: blobRecord.data.blob.size
-                            }
-                        })
+                            embeddedImage.push({
+                                alt: "",
+                                image: {
+                                    $type: "blob",
+                                    ref: blobRecord.data.blob.ref,
+                                    mimeType: mimeType,
+                                    size: blobRecord.data.blob.size
+                                }
+                            })
+                        }
                     }
 
                     if (media?.type === "video") {
@@ -118,20 +138,35 @@ async function main() {
                 embed: embeddedImage.length > 0 ? { $type: "app.bsky.embed.images", images: embeddedImage } : undefined,
             }
 
-            const recordData = await agent.post(postRecord);
-            const i = recordData.uri.lastIndexOf("/");
-            if (i > 0) {
-                const rkey = recordData.uri.substring(i + 1);
-                const postUri = `https://bsky.app/profile/${process.env.BLUESKY_USERNAME!}/post/${rkey}`;
-                console.log("Bluesky post create, URI: " + postUri);
-            } else {
-                console.log(recordData);
-            }
+            if (!SIMULATE) {
+                //I wait 3 seconds so as not to exceed the api rate limits
+                await new Promise(resolve => setTimeout(resolve, API_DELAY));
 
-            // if (index > 20)
-            //     break;
+                const recordData = await agent.post(postRecord);
+                const i = recordData.uri.lastIndexOf("/");
+                if (i > 0) {
+                    const rkey = recordData.uri.substring(i + 1);
+                    const postUri = `https://bsky.app/profile/${process.env.BLUESKY_USERNAME!}/post/${rkey}`;
+                    console.log("Bluesky post create, URI: " + postUri);
+
+                    importedTweet++;
+                } else {
+                    console.warn(recordData);
+                }
+            } else {
+                importedTweet++;
+            }
         }
     }
+
+    if (SIMULATE) {
+        const minutes = Math.round((importedTweet * API_DELAY / 1000) / 60);
+        const hours = Math.floor(minutes / 60);
+        const min = minutes % 60;
+        console.log(`Estimated time for real import: ${hours} hours and ${min} minutes`);
+    }
+
+    console.log(`Importa finished at ${new Date().toISOString()}, imported ${importedTweet} tweets`)
 }
 
 main();
