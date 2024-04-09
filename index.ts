@@ -30,8 +30,8 @@ async function main() {
             const tweet = sortedTweets[index].tweet;
             const tweet_createdAt = new Date(tweet.created_at).toISOString();
 
-            if (tweet.id != "1586765266427564037")
-                continue;
+            // if (tweet.id != "1586765266427564037")
+            //     continue;
 
             console.log(`Parse tweet id '${tweet.id}'`);
             console.log(` Created at ${tweet_createdAt}`);
@@ -50,11 +50,12 @@ async function main() {
                 continue;
             }
 
+            let embeddedImage = [] as any;
             if (tweet.entities?.media) {
+
                 for (let index = 0; index < tweet.entities.media.length; index++) {
                     const media = tweet.entities.media[index];
                     if (media?.type === "photo") {
-                        //"C:\Temp\twitter-archive-2022-10-31\data\tweets_media\1586765266427564037-FgVSmZOXwAEAbiT.jpg"
                         const i = media?.media_url.lastIndexOf("/");
                         const it = media?.media_url.lastIndexOf(".");
                         const fileType = media?.media_url.substring(it + 1)
@@ -74,18 +75,21 @@ async function main() {
                             continue;
 
                         const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
-                        console.log(mediaFilename);
-
                         const imageBuffer = FS.readFileSync(mediaFilename);
 
-                        const blobRecord = await agent.uploadBlob(imageBuffer.toString("base64"), {
-                            // headers: {
-                            //     "Content-Type": mimeType
-                            // },
-                            encoding: "base64"
+                        const blobRecord = await agent.uploadBlob(imageBuffer, {
+                            encoding: mimeType
                         });
 
-                        console.log(blobRecord);
+                        embeddedImage.push({
+                            alt: "",
+                            image: {
+                                $type: "blob",
+                                ref: blobRecord.data.blob.ref,
+                                mimeType: mimeType,
+                                size: blobRecord.data.blob.size
+                            }
+                        })
                     }
                 }
             }
@@ -99,6 +103,7 @@ async function main() {
                 text: rt.text,
                 facets: rt.facets,
                 createdAt: tweet_createdAt,
+                embed: embeddedImage.length > 0 ? { $type: "app.bsky.embed.images", images: embeddedImage } : undefined,
             }
 
             const recordData = await agent.post(postRecord);
@@ -111,8 +116,8 @@ async function main() {
                 console.log(recordData);
             }
 
-            if (index > 5)
-                break;
+            // if (index > 5)
+            //     break;
         }
     }
 }
