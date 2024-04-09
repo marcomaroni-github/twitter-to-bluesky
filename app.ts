@@ -128,8 +128,8 @@ async function main() {
                 console.log(recordData);
             }
 
-            if (index > 20)
-                break;
+            // if (index > 20)
+            //     break;
         }
     }
 }
