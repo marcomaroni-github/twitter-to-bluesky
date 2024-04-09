@@ -10,7 +10,7 @@ They use the official archive export file format from X/Twitter, this utility re
 
 ## Prerequisite
 
-Nodejs > 18.19.0
+Nodejs >= 18.19.0
 
 ## Getting started
 
