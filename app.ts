@@ -12,7 +12,7 @@ const agent = new BskyAgent({
 
 const SIMULATE = process.env.SIMULATE === "1";
 
-const API_DELAY = 3000;
+const API_DELAY = 2500;
 
 let MIN_DATE: Date | undefined = undefined;
 if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
