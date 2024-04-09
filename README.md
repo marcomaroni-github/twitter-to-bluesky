@@ -8,6 +8,11 @@ They use the official archive export file format from X/Twitter, this utility re
 
 ⚠️ We recommend creating a specific account to test the import and not using your main Bluesky account ⚠️
 
+## Which tweets are not imported
+
+- Retweets and tweets that start with a quote from another user @ or RT.
+- Tweets that contain videos, because they are not currently supported by Bluesky
+
 ## Prerequisite
 
 Nodejs >= 18.19.0
@@ -25,4 +30,4 @@ Nodejs >= 18.19.0
 7. Compile your project by running: `npm run compile`
 
 ## Running the script 
-1. You can run the script locally: `node index.js`.
+1. You can run the script locally: `npm start` or `npm run start_log` to write an import.log file.
