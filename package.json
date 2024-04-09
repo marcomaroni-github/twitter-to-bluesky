@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node app.js",
+    "start_log": "node app.js > import.log",
     "compile": "npx tsc"
   },
   "author": "",
