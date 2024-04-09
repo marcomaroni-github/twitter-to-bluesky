@@ -3,11 +3,12 @@
   "version": "0.0.1",
   "description": "Import tweet archive to a Bluesky account",
   "main": "app.js",
+  "engines": {
+    "node": ">=18.19.0"
+  },
   "scripts": {
     "start": "node app.js",
-    "compile": "npx tsc",
-    "compile_w": "npx tsc -w",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "npx tsc"
   },
   "author": "",
   "license": "ISC",
