@@ -7,8 +7,8 @@
     "node": ">=18.19.0"
   },
   "scripts": {
-    "start": "node app.js",
-    "start_log": "node app.js > import.log",
+    "start": "npx tsc && node app.js",
+    "start_log": "npx tsc && node app.js > import.log",
     "compile": "npx tsc"
   },
   "author": "",
