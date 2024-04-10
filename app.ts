@@ -25,8 +25,9 @@ if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
 async function main() {
     console.log(`Importa started at ${new Date().toISOString()}`)
 
-    const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.json");
-    const tweets = JSON.parse(fTweets.toString());
+    const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
+
+    const tweets = JSON.parse(fTweets.toString().replace("window.YTD.tweets.part0 = [", "["));
     let importedTweet = 0;
     if (tweets != null && tweets.length > 0) {
         const sortedTweets = tweets.sort((a, b) => {
@@ -147,7 +148,7 @@ async function main() {
                 if (i > 0) {
                     const rkey = recordData.uri.substring(i + 1);
                     const postUri = `https://bsky.app/profile/${process.env.BLUESKY_USERNAME!}/post/${rkey}`;
-                    console.log("Bluesky post create, URI: " + postUri);
+                    console.log("Bluesky post create, URL: " + postUri);
 
                     importedTweet++;
                 } else {

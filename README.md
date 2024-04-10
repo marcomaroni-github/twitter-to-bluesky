@@ -15,33 +15,30 @@ They use the official archive export file format from X/Twitter, this utility re
 
 ## Prerequisite
 
-Nodejs >= 18.19.0
+- Nodejs >= 18.19.0
+- The archive of your tweets from the X/Twitter.
 
 ## Getting started
 
-1. The first step is to obtain the archive of your tweets from the X/Twitter.
-2. Then open the `tweets.js` file in the archive `data` sub folder by changing the first line from `window.YTD.tweets.part0 = [` to `[`, save the file as `twwet.json`.
-3. Install Typescript: `npm i -g typescript`
-4. Install Node.js: `npm i -g ts-node`
-5. Create an .env file in the project folder by setting the following variables:
+1. Install Typescript: `npm i -g typescript`
+2. Install Node.js: `npm i -g ts-node`
+3. Create an .env file in the project folder by setting the following variables:
         `BLUESKY_USERNAME` = username into which you want to import the tweets (e.g. "test.bsky.social")
         `BLUESKY_PASSWORD` = account password created via App Password (eg. "pwd123")
         `ARCHIVE_FOLDER` = full path to the folder containing the X/Twitter archive (e.g. "C:/Temp/twitter-archive")
 
+**I highly recommend trying to simulate the import first and import a small range of tweets, using the additional parameters documented below.**
 
 ## Running the script 
-You can run the script locally: `npm start` or `npm run start_log` to write an import.log file.
 
-**I highly recommend trying to simulate the import first and import a small range of tweets, using the additional parameters documented below.**
+You can run the script locally: `npm start` or `npm run start_log` to write an import.log file.
 
 ### Optional environment parameters
 
 Additionally you can set these environment variables to customize behavior:
 
 `SIMULATE` = if set to "1" simulates the import by counting the tweets and indicating the estimated import time.
-
 `MIN_DATE` = indicates the minimum date of tweets to import, ISO format (e.g. '2011-01-01' or '2011-02-09T10:30:49.000Z').
-
 `MAX_DATE` = indicates the maximum date of tweets to import, ISO format (e.g. '2012-01-01' or '2014-04-09T12:36:49.328Z').
 
 ## License
