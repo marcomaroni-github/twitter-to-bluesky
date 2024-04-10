@@ -6,3 +6,6 @@ node_modules/
 
 # log files
 .log
+
+# compiled js
+app.js
