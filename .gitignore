@@ -8,4 +8,4 @@ node_modules/
 .log
 
 # compiled js
-# app.js
+app.js
