@@ -1,6 +1,6 @@
 {
   "name": "twittertobluesky",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Import tweet archive to a Bluesky account",
   "main": "app.js",
   "engines": {
