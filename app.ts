@@ -180,6 +180,8 @@ async function main() {
             let postText = tweet.full_text;
             if (!SIMULATE) {
                 postText = await cleanTweetText(tweet.full_text);
+                if(postText.length > 300)
+                    postText = tweet.full_text;
                 if (tweet.full_text != postText)
                     console.log(` Clean text '${postText}'`);
             }
