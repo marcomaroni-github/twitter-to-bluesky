@@ -16,9 +16,13 @@
   "dependencies": {
     "@atproto/api": "^0.12.2",
     "dotenv": "^16.4.5",
-    "process": "^0.11.10"
+    "follow-redirects": "^1.15.6",
+    "process": "^0.11.10",
+    "urijs": "^1.19.11"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7"
+    "@types/follow-redirects": "^1.14.4",
+    "@types/node": "^20.12.7",
+    "@types/urijs": "^1.19.25"
   }
 }

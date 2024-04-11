@@ -1,10 +1,14 @@
 import * as dotenv from 'dotenv';
+import { https } from 'follow-redirects';
 import FS from 'fs';
 import * as process from 'process';
+import URI from 'urijs';
 
 import { BskyAgent, RichText } from '@atproto/api';
 
 dotenv.config();
+
+
 
 const agent = new BskyAgent({
     service: 'https://bsky.social',
@@ -14,6 +18,8 @@ const SIMULATE = process.env.SIMULATE === "1";
 
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
+const TWITTER_HANDLE = process.env.TWITTER_HANDLE;
+
 let MIN_DATE: Date | undefined = undefined;
 if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
     MIN_DATE = new Date(process.env.MIN_DATE as string);
@@ -21,6 +27,50 @@ if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
 let MAX_DATE: Date | undefined = undefined;
 if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
     MAX_DATE = new Date(process.env.MAX_DATE as string);
+
+async function resolveShorURL(url: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+        https.get(url, response => {
+            resolve(response.responseUrl);
+        }).on('error', err => {
+            console.warn(`Error parsing url ${url}`);
+            resolve(url);
+        });
+    });
+}
+
+async function cleanTweetText(tweetFullText: string): Promise<string> {
+    let newText = tweetFullText;
+    const urls: string[] = [];
+    URI.withinString(tweetFullText, (url, start, end, source) => {
+        urls.push(url);
+        return url;
+    });
+
+    if (urls.length > 0) {
+        const newUrls: string[] = [];
+        for (let index = 0; index < urls.length; index++) {
+            const newUrl = await resolveShorURL(urls[index]);
+            newUrls.push(newUrl);
+        }
+
+        if (newUrls.length > 0) {
+            let j = 0;
+            newText = URI.withinString(tweetFullText, (url, start, end, source) => {
+                // I exclude links to photos, because they have already been inserted into the Bluesky post independently
+                if (newUrls[j].startsWith(`https://twitter.com/${TWITTER_HANDLE}/`)
+                    && newUrls[j].indexOf("/photo/") > 0) {
+                    j++;
+                    return "";
+                }
+                else
+                    return newUrls[j++];
+            });
+        }
+    }
+
+    return newText;
+}
 
 async function main() {
     console.log(`Importa started at ${new Date().toISOString()}`)
@@ -45,11 +95,11 @@ async function main() {
 
             //this cheks assume that the array is sorted by date (first the oldest)
             if (MIN_DATE != undefined && tweetDate < MIN_DATE)
-                continue; 
+                continue;
             if (MAX_DATE != undefined && tweetDate > MAX_DATE)
                 break;
 
-            // if (tweet.id != "1586765266427564037")
+            // if (tweet.id != "939272948019548160")
             //     continue;
 
             console.log(`Parse tweet id '${tweet.id}'`);
@@ -127,8 +177,15 @@ async function main() {
                 continue;
             }
 
+            let postText = tweet.full_text;
+            if (!SIMULATE) {
+                postText = await cleanTweetText(tweet.full_text);
+                if (tweet.full_text != postText)
+                    console.log(` Clean text '${postText}'`);
+            }
+
             const rt = new RichText({
-                text: tweet.full_text
+                text: postText
             });
             await rt.detectFacets(agent);
             const postRecord = {
@@ -161,7 +218,8 @@ async function main() {
     }
 
     if (SIMULATE) {
-        const minutes = Math.round((importedTweet * API_DELAY / 1000) / 60);
+        // In addition to the delay in AT Proto API calls, we will also consider a 5% delta for URL resolution calls
+        const minutes = Math.round((importedTweet * API_DELAY / 1000) / 60) + (1 / 0.1);
         const hours = Math.floor(minutes / 60);
         const min = minutes % 60;
         console.log(`Estimated time for real import: ${hours} hours and ${min} minutes`);

@@ -15,17 +15,19 @@ They use the official archive export file format from X/Twitter, this utility re
 
 ## Prerequisite
 
-- Nodejs >= 18.19.0
+- Nodejs >= 20.12x
 - The archive of your tweets from the X/Twitter.
 
 ## Getting started
 
 1. Install Typescript: `npm i -g typescript`
 2. Install Node.js: `npm i -g ts-node`
+3. In the project folder run: `npm i`
 3. Create an .env file in the project folder by setting the following variables:
         `BLUESKY_USERNAME` = username into which you want to import the tweets (e.g. "test.bsky.social")
         `BLUESKY_PASSWORD` = account password created via App Password (eg. "pwd123")
         `ARCHIVE_FOLDER` = full path to the folder containing the X/Twitter archive (e.g. "C:/Temp/twitter-archive")
+        `TWITTER_HANDLE` - twitter username/handle wihtout @ (e.g. 'marcomaroni')
 
 **I highly recommend trying to simulate the import first and import a small range of tweets, using the additional parameters documented below.**
 
