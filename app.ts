@@ -99,7 +99,7 @@ async function main() {
             if (MAX_DATE != undefined && tweetDate > MAX_DATE)
                 break;
 
-            // if (tweet.id != "939272948019548160")
+            // if (tweet.id != "1237000612639846402")
             //     continue;
 
             console.log(`Parse tweet id '${tweet.id}'`);
@@ -177,11 +177,16 @@ async function main() {
                 continue;
             }
 
-            let postText = tweet.full_text;
+            let postText = tweet.full_text as string;
             if (!SIMULATE) {
                 postText = await cleanTweetText(tweet.full_text);
+
                 if(postText.length > 300)
                     postText = tweet.full_text;
+
+                if( postText.length > 300)
+                    postText = postText.substring(0,296) + '...';
+    
                 if (tweet.full_text != postText)
                     console.log(` Clean text '${postText}'`);
             }
