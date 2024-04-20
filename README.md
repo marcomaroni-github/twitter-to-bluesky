@@ -2,9 +2,9 @@
 
 Import all tweets exported from X/Twitter to a Bluesky account.
 
-⚠️ This project is a work-in-progress ⚠️
-
 They use the official archive export file format from X/Twitter, this utility reads the archive from the local disk and using the official Bluesky Typescript SDK imports the tweets into the configured Bluesky account.
+
+[**An example of an account used to import X/Twitter archive**](https://bsky.app/profile/mm-twitter-archive.bsky.social)
 
 ⚠️ We recommend creating a specific account to test the import and not using your main Bluesky account ⚠️
 
