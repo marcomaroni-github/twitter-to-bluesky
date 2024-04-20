@@ -16,7 +16,7 @@ They use the official archive export file format from X/Twitter, this utility re
 ## Prerequisite
 
 - Nodejs >= 20.12x
-- The archive of your tweets from the X/Twitter.
+- The archive of your tweets from the X/Twitter, unzipped in your local disk.
 
 ## Getting started
 
