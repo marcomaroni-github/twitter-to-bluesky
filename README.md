@@ -27,7 +27,7 @@ They use the official archive export file format from X/Twitter, this utility re
 - `BLUESKY_USERNAME` = username into which you want to import the tweets (e.g. "test.bsky.social")
 - `BLUESKY_PASSWORD` = account password created via App Password (eg. "pwd123")
 - `ARCHIVE_FOLDER` = full path to the folder containing the X/Twitter archive (e.g. "C:/Temp/twitter-archive")
-- `TWITTER_HANDLE` - twitter username/handle wihtout @ (e.g. 'marcomaroni')
+- `PAST_HANDLES` - one or more x/twitter handles wihtout @, comma separated (e.g. 'marcomaroni,user')
 
 **I highly recommend trying to simulate the import first and import a small range of tweets, using the additional parameters documented below.**
 
