@@ -146,6 +146,11 @@ async function main() {
                         if (mimeType.length <= 0)
                             continue;
 
+                        if (index > 3) {
+                            console.warn("Bluesky does not support more than 4 images per post, excess images will be discarded.")
+                            break;
+                        }
+
                         const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
                         const imageBuffer = FS.readFileSync(mediaFilename);
 
@@ -159,7 +164,7 @@ async function main() {
                                 image: {
                                     $type: "blob",
                                     ref: blobRecord.data.blob.ref,
-                                    mimeType: mimeType,
+                                    mimeType: blobRecord.data.blob.mimeType,
                                     size: blobRecord.data.blob.size
                                 }
                             })
@@ -182,12 +187,12 @@ async function main() {
             if (!SIMULATE) {
                 postText = await cleanTweetText(tweet.full_text);
 
-                if(postText.length > 300)
+                if (postText.length > 300)
                     postText = tweet.full_text;
 
-                if( postText.length > 300)
-                    postText = postText.substring(0,296) + '...';
-    
+                if (postText.length > 300)
+                    postText = postText.substring(0, 296) + '...';
+
                 if (tweet.full_text != postText)
                     console.log(` Clean text '${postText}'`);
             }
