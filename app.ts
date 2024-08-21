@@ -18,7 +18,7 @@ const SIMULATE = process.env.SIMULATE === "1";
 
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
-const TWITTER_HANDLE = process.env.TWITTER_HANDLE;
+const PAST_HANDLES = process.env.TWITTER_HANDLE?.split(",");
 
 let MIN_DATE: Date | undefined = undefined;
 if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
@@ -58,7 +58,7 @@ async function cleanTweetText(tweetFullText: string): Promise<string> {
             let j = 0;
             newText = URI.withinString(tweetFullText, (url, start, end, source) => {
                 // I exclude links to photos, because they have already been inserted into the Bluesky post independently
-                if (newUrls[j].startsWith(`https://twitter.com/${TWITTER_HANDLE}/`)
+                if ((PAST_HANDLES || []).some(handle => newUrls[j].startsWith(`https://x.com/${handle}/`))
                     && newUrls[j].indexOf("/photo/") > 0) {
                     j++;
                     return "";
@@ -73,7 +73,8 @@ async function cleanTweetText(tweetFullText: string): Promise<string> {
 }
 
 async function main() {
-    console.log(`Importa started at ${new Date().toISOString()}`)
+    console.log(`Import started at ${new Date().toISOString()}`)
+    console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
 
     const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
 
@@ -232,7 +233,7 @@ async function main() {
         console.log(`Estimated time for real import: ${hours} hours and ${min} minutes`);
     }
 
-    console.log(`Importa finished at ${new Date().toISOString()}, imported ${importedTweet} tweets`)
+    console.log(`Import finished at ${new Date().toISOString()}, imported ${importedTweet} tweets`)
 }
 
 main();
