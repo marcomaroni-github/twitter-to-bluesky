@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/follow-redirects": "^1.14.4",
-    "@types/node": "^20.12.7",
+    "@types/node": "^20.16.12",
     "@types/urijs": "^1.19.25"
   }
 }
