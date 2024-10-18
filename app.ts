@@ -3,12 +3,12 @@ import { https } from 'follow-redirects';
 import FS from 'fs';
 import * as process from 'process';
 import URI from 'urijs';
+import he from 'he';
+
 
 import { BskyAgent, RichText } from '@atproto/api';
 
 dotenv.config();
-
-
 
 const agent = new BskyAgent({
     service: 'https://bsky.social',
@@ -68,6 +68,8 @@ async function cleanTweetText(tweetFullText: string): Promise<string> {
             });
         }
     }
+
+    newText = he.decode(newText);
 
     return newText;
 }
