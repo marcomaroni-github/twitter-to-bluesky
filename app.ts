@@ -18,7 +18,7 @@ const SIMULATE = process.env.SIMULATE === "1";
 
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
-const PAST_HANDLES = process.env.TWITTER_HANDLE?.split(",");
+const PAST_HANDLES = process.env.PAST_HANDLES?.split(",");
 
 let MIN_DATE: Date | undefined = undefined;
 if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
