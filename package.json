@@ -14,7 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@atproto/api": "^0.12.2",
+    "@atproto/api": "^0.13.12",
     "dotenv": "^16.4.5",
     "follow-redirects": "^1.15.6",
     "he": "^1.2.0",
