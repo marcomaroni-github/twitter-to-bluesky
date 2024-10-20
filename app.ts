@@ -181,8 +181,7 @@ async function main() {
                         let videoFilePath = '';
                         let localVideoFileNotFound = true;
                         for(let v=0; v<media?.video_info?.variants?.length; v++) {
-                            const z = media.video_info.variants[v].url.lastIndexOf("/");
-                            videoFileName = media.video_info.variants[v].url.substring(z+1);
+                            videoFileName = media.video_info.variants[v].url.split("/").pop()!;
                             videoFilePath = `${baseVideoPath}${videoFileName}`;
                             if (FS.existsSync(videoFilePath)) {
                                 localVideoFileNotFound = false
