@@ -9,3 +9,6 @@ node_modules/
 
 # compiled js
 app.js
+
+# VS Code debug config file
+.vscode/launch.json
