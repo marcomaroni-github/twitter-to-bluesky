@@ -18,7 +18,7 @@ const SIMULATE = process.env.SIMULATE === "1";
 
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
-const TWITTER_HANDLE = process.env.PAST_HANDLES?.split(",");
+const PAST_HANDLES = process.env.PAST_HANDLES?.split(",");
 
 let MIN_DATE: Date | undefined = undefined;
 if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
@@ -58,7 +58,7 @@ async function cleanTweetText(tweetFullText: string): Promise<string> {
             let j = 0;
             newText = URI.withinString(tweetFullText, (url, start, end, source) => {
                 // I exclude links to photos, because they have already been inserted into the Bluesky post independently
-                if ((TWITTER_HANDLE || []).some(handle => newUrls[j].startsWith(`https://x.com/${handle}/`))
+                if ((PAST_HANDLES || []).some(handle => newUrls[j].startsWith(`https://x.com/${handle}/`))
                     && newUrls[j].indexOf("/photo/") > 0) {
                     j++;
                     return "";
