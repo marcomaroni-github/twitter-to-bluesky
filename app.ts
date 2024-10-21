@@ -1,13 +1,11 @@
 import * as dotenv from 'dotenv';
 import { https } from 'follow-redirects';
 import FS from 'fs';
+import he from 'he';
 import * as process from 'process';
 import URI from 'urijs';
-import he from 'he';
 
-
-import {AppBskyEmbedVideo, AppBskyVideoDefs, AtpAgent, BlobRef, RichText} from '@atproto/api';
-import { blob } from 'stream/consumers';
+import { AppBskyEmbedVideo, AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
 dotenv.config();
 
@@ -123,7 +121,6 @@ async function main() {
                 continue;
             }
 
-            let tweetWithEmbeddedVideo = false;
             let embeddedImage = [] as any;
             let embeddedVideo = [] as any;
             if (tweet.extended_entities?.media) {
@@ -188,8 +185,9 @@ async function main() {
                                 break;
                             }
                         }
+
                         if( localVideoFileNotFound ) {
-                            console.log("Local video file not found tweet discarded")
+                            console.log("Local video file not found into archive, tweet discarded")
                             continue
                         }
 
@@ -212,6 +210,8 @@ async function main() {
                             uploadUrl.searchParams.append("did", agent.session!.did);
                             uploadUrl.searchParams.append("name", videoFilePath.split("/").pop()!);
     
+                            console.log(" Updaload video");
+
                             const uploadResponse = await fetch(uploadUrl, {
                                 method: "POST",
                                 headers: {
@@ -234,8 +234,7 @@ async function main() {
                               const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
                                 { jobId: jobStatus.jobId },
                               );
-                              console.log(
-                                " Status:",
+                              console.log("  Status:",
                                 status.jobStatus.state,
                                 status.jobStatus.progress || "",
                               );
@@ -245,7 +244,7 @@ async function main() {
                               // wait a second
                               await new Promise((resolve) => setTimeout(resolve, 1000));
                             }
-    
+
                             embeddedVideo = {
                                 $type: "app.bsky.embed.video",
                                 video: blob,
