@@ -187,7 +187,7 @@ async function main() {
                         }
 
                         if( localVideoFileNotFound ) {
-                            console.log("Local video file not found into archive, tweet discarded")
+                            console.log(`Local video file not found into archive, tweet discarded. Local path: ${videoFilePath}`);
                             continue
                         }
 
