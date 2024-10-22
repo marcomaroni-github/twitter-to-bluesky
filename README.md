@@ -20,8 +20,7 @@ They use the official archive export file format from X/Twitter, this utility re
 
 ## Getting started
 
-1. Install Typescript: `npm i -g typescript`
-2. Install Node.js: `npm i -g ts-node`
+1. Install [Node.js](https://nodejs.org/) if you don't have it yet.
 3. In the project folder run: `npm i`
 3. Create an .env file in the project folder by setting the following variables:
 - `BLUESKY_USERNAME` = username into which you want to import the tweets (e.g. "test.bsky.social")
