@@ -4,9 +4,8 @@ import FS from 'fs';
 import * as process from 'process';
 import URI from 'urijs';
 import he from 'he';
-
-
 import { BskyAgent, RichText } from '@atproto/api';
+import { getReplyRefs } from './libs/bskyReply';
 
 dotenv.config();
 
@@ -19,6 +18,11 @@ const SIMULATE = process.env.SIMULATE === "1";
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
 const PAST_HANDLES = process.env.PAST_HANDLES?.split(",");
+
+const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
+
+const IMPORT_REPLY = process.env.IMPORT_REPLY === "1";
+
 
 let MIN_DATE: Date | undefined = undefined;
 if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
@@ -74,13 +78,37 @@ async function cleanTweetText(tweetFullText: string): Promise<string> {
     return newText;
 }
 
+function getTweets(){
+    // get cache (from last time imported)
+    let caches = []
+    if(FS.existsSync(TWEETS_MAPPING_FILE_NAME)){
+        caches = JSON.parse(FS.readFileSync(TWEETS_MAPPING_FILE_NAME).toString());
+    }
+
+    // get original tweets
+    const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
+    const tweets = JSON.parse(fTweets.toString().replace("window.YTD.tweets.part0 = [", "["));
+
+    // merge alreadyImported into tweets
+    const alreadyImported = caches.filter(({ bsky })=> bsky);
+    alreadyImported.forEach(({tweet: { id }, bsky })=> {
+        const importedTweetIndex = tweets.findIndex(({ tweet }) => id == tweet.id );
+        if( importedTweetIndex > -1 ){
+            tweets[importedTweetIndex].bsky = bsky;
+        }
+    })
+
+    return tweets;
+}
+
+
 async function main() {
     console.log(`Import started at ${new Date().toISOString()}`)
     console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
 
-    const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
 
-    const tweets = JSON.parse(fTweets.toString().replace("window.YTD.tweets.part0 = [", "["));
+    const tweets = getTweets();
+  
     let importedTweet = 0;
     if (tweets != null && tweets.length > 0) {
         const sortedTweets = tweets.sort((a, b) => {
@@ -89,146 +117,173 @@ async function main() {
             return ad - bd;
         });
 
-        await agent.login({ identifier: process.env.BLUESKY_USERNAME!, password: process.env.BLUESKY_PASSWORD! })
+        await agent.login({ identifier: process.env.BLUESKY_USERNAME!, password: process.env.BLUESKY_PASSWORD! });
+       
+        try{
+            for (let index = 0; index < sortedTweets.length; index++) {
+                const currentData =  sortedTweets[index];
+                const { tweet, bsky } = currentData;
+                const tweetDate = new Date(tweet.created_at);
+                const tweet_createdAt = tweetDate.toISOString();
 
-        for (let index = 0; index < sortedTweets.length; index++) {
-            const tweet = sortedTweets[index].tweet;
-            const tweetDate = new Date(tweet.created_at);
-            const tweet_createdAt = tweetDate.toISOString();
+                //this cheks assume that the array is sorted by date (first the oldest)
+                if (MIN_DATE != undefined && tweetDate < MIN_DATE)
+                    continue;
+                if (MAX_DATE != undefined && tweetDate > MAX_DATE)
+                    break;
+                
+                if(bsky){
+                    // already imported
+                    continue;
+                }
+                // if (tweet.id != "1237000612639846402")
+                //     continue;
 
-            //this cheks assume that the array is sorted by date (first the oldest)
-            if (MIN_DATE != undefined && tweetDate < MIN_DATE)
-                continue;
-            if (MAX_DATE != undefined && tweetDate > MAX_DATE)
-                break;
+                console.log(`Parse tweet id '${tweet.id}'`);
+                console.log(` Created at ${tweet_createdAt}`);
+                console.log(` Full text '${tweet.full_text}'`);
 
-            // if (tweet.id != "1237000612639846402")
-            //     continue;
+                if (!IMPORT_REPLY && tweet.in_reply_to_screen_name) {
+                    console.log("Discarded (reply)");
+                    continue;
+                }
+                if (tweet.full_text.startsWith("@")) {
+                    console.log("Discarded (start with @)");
+                    continue;
+                }
+                if (tweet.full_text.startsWith("RT ")) {
+                    console.log("Discarded (start with RT)");
+                    continue;
+                }
 
-            console.log(`Parse tweet id '${tweet.id}'`);
-            console.log(` Created at ${tweet_createdAt}`);
-            console.log(` Full text '${tweet.full_text}'`);
+                let tweetWithEmbeddedVideo = false;
+                let embeddedImage = [] as any;
+                if (tweet.extended_entities?.media) {
 
-            if (tweet.in_reply_to_screen_name) {
-                console.log("Discarded (reply)");
-                continue;
-            }
-            if (tweet.full_text.startsWith("@")) {
-                console.log("Discarded (start with @)");
-                continue;
-            }
-            if (tweet.full_text.startsWith("RT ")) {
-                console.log("Discarded (start with RT)");
-                continue;
-            }
+                    for (let index = 0; index < tweet.extended_entities.media.length; index++) {
+                        const media = tweet.extended_entities.media[index];
 
-            let tweetWithEmbeddedVideo = false;
-            let embeddedImage = [] as any;
-            if (tweet.extended_entities?.media) {
+                        if (media?.type === "photo") {
+                            const i = media?.media_url.lastIndexOf("/");
+                            const it = media?.media_url.lastIndexOf(".");
+                            const fileType = media?.media_url.substring(it + 1)
+                            let mimeType = "";
+                            switch (fileType) {
+                                case "png":
+                                    mimeType = "image/png"
+                                    break;
+                                case "jpg":
+                                    mimeType = "image/jpeg"
+                                    break;
+                                default:
+                                    console.error("Unsopported photo file type" + fileType);
+                                    break;
+                            }
+                            if (mimeType.length <= 0)
+                                continue;
 
-                for (let index = 0; index < tweet.extended_entities.media.length; index++) {
-                    const media = tweet.extended_entities.media[index];
-
-                    if (media?.type === "photo") {
-                        const i = media?.media_url.lastIndexOf("/");
-                        const it = media?.media_url.lastIndexOf(".");
-                        const fileType = media?.media_url.substring(it + 1)
-                        let mimeType = "";
-                        switch (fileType) {
-                            case "png":
-                                mimeType = "image/png"
+                            if (index > 3) {
+                                console.warn("Bluesky does not support more than 4 images per post, excess images will be discarded.")
                                 break;
-                            case "jpg":
-                                mimeType = "image/jpeg"
-                                break;
-                            default:
-                                console.error("Unsopported photo file type" + fileType);
-                                break;
+                            }
+
+                            const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
+                            const imageBuffer = FS.readFileSync(mediaFilename);
+
+                            if (!SIMULATE) {
+                                const blobRecord = await agent.uploadBlob(imageBuffer, {
+                                    encoding: mimeType
+                                });
+
+                                embeddedImage.push({
+                                    alt: "",
+                                    image: {
+                                        $type: "blob",
+                                        ref: blobRecord.data.blob.ref,
+                                        mimeType: blobRecord.data.blob.mimeType,
+                                        size: blobRecord.data.blob.size
+                                    }
+                                })
+                            }
                         }
-                        if (mimeType.length <= 0)
+
+                        if (media?.type === "video") {
+                            tweetWithEmbeddedVideo = true;
                             continue;
-
-                        if (index > 3) {
-                            console.warn("Bluesky does not support more than 4 images per post, excess images will be discarded.")
-                            break;
                         }
-
-                        const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
-                        const imageBuffer = FS.readFileSync(mediaFilename);
-
-                        if (!SIMULATE) {
-                            const blobRecord = await agent.uploadBlob(imageBuffer, {
-                                encoding: mimeType
-                            });
-
-                            embeddedImage.push({
-                                alt: "",
-                                image: {
-                                    $type: "blob",
-                                    ref: blobRecord.data.blob.ref,
-                                    mimeType: blobRecord.data.blob.mimeType,
-                                    size: blobRecord.data.blob.size
-                                }
-                            })
-                        }
-                    }
-
-                    if (media?.type === "video") {
-                        tweetWithEmbeddedVideo = true;
-                        continue;
                     }
                 }
-            }
 
-            if (tweetWithEmbeddedVideo) {
-                console.log("Discarded (containnig videos)");
-                continue;
-            }
+                if (tweetWithEmbeddedVideo) {
+                    console.log("Discarded (containnig videos)");
+                    continue;
+                }
 
-            let postText = tweet.full_text as string;
-            if (!SIMULATE) {
-                postText = await cleanTweetText(tweet.full_text);
+                let replyTo: {}|null = null; 
+                if ( IMPORT_REPLY && !SIMULATE && tweet.in_reply_to_screen_name) {
+                    replyTo = getReplyRefs(tweet,sortedTweets);
+                }
 
-                if (postText.length > 300)
-                    postText = tweet.full_text;
+                let postText = tweet.full_text as string;
+                if (!SIMULATE) {
+                    postText = await cleanTweetText(tweet.full_text);
 
-                if (postText.length > 300)
-                    postText = postText.substring(0, 296) + '...';
+                    if (postText.length > 300)
+                        postText = tweet.full_text;
 
-                if (tweet.full_text != postText)
-                    console.log(` Clean text '${postText}'`);
-            }
+                    if (postText.length > 300)
+                        postText = postText.substring(0, 296) + '...';
 
-            const rt = new RichText({
-                text: postText
-            });
-            await rt.detectFacets(agent);
-            const postRecord = {
-                $type: 'app.bsky.feed.post',
-                text: rt.text,
-                facets: rt.facets,
-                createdAt: tweet_createdAt,
-                embed: embeddedImage.length > 0 ? { $type: "app.bsky.embed.images", images: embeddedImage } : undefined,
-            }
+                    if (tweet.full_text != postText)
+                        console.log(` Clean text '${postText}'`);
+                }
 
-            if (!SIMULATE) {
-                //I wait 3 seconds so as not to exceed the api rate limits
-                await new Promise(resolve => setTimeout(resolve, API_DELAY));
+                const rt = new RichText({
+                    text: postText
+                });
+                await rt.detectFacets(agent);
+                const postRecord = {
+                    $type: 'app.bsky.feed.post',
+                    text: rt.text,
+                    facets: rt.facets,
+                    createdAt: tweet_createdAt,
+                    embed: embeddedImage.length > 0 ? { $type: "app.bsky.embed.images", images: embeddedImage } : undefined,
+                }
+                
+                if(replyTo && Object.keys(replyTo).length > 0){
+                    Object.assign(postRecord, { reply: replyTo });
+                }
 
-                const recordData = await agent.post(postRecord);
-                const i = recordData.uri.lastIndexOf("/");
-                if (i > 0) {
-                    const rkey = recordData.uri.substring(i + 1);
-                    const postUri = `https://bsky.app/profile/${process.env.BLUESKY_USERNAME!}/post/${rkey}`;
-                    console.log("Bluesky post create, URL: " + postUri);
+                if (!SIMULATE) {
+                    //I wait 3 seconds so as not to exceed the api rate limits
+                    await new Promise(resolve => setTimeout(resolve, API_DELAY));
 
-                    importedTweet++;
+                    const recordData = await agent.post(postRecord);
+                    const i = recordData.uri.lastIndexOf("/");
+                    if (i > 0) {
+                        const rkey = recordData.uri.substring(i + 1);
+                        const postUri = `https://bsky.app/profile/${process.env.BLUESKY_USERNAME!}/post/${rkey}`;
+                        console.log("Bluesky post create, URL: " + postUri);
+
+                        importedTweet++;
+                    } else {
+                        console.warn(recordData);
+                    }
+
+                    // store bsky data into sortedTweets (then write into the mapping file)
+                    currentData.bsky = {
+                        uri: recordData.uri,
+                        cid: recordData.cid,
+                    };
                 } else {
-                    console.warn(recordData);
+                    importedTweet++;
                 }
-            } else {
-                importedTweet++;
             }
+        }catch($e){
+            throw $e;
+        }finally {
+            // always update the mapping file
+            FS.writeFileSync(TWEETS_MAPPING_FILE_NAME, JSON.stringify(sortedTweets, null, 4))
         }
     }
 
@@ -239,8 +294,9 @@ async function main() {
         const min = minutes % 60;
         console.log(`Estimated time for real import: ${hours} hours and ${min} minutes`);
     }
-
+    
     console.log(`Import finished at ${new Date().toISOString()}, imported ${importedTweet} tweets`)
+
 }
 
 main();
