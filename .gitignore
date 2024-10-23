@@ -5,7 +5,10 @@ node_modules/
 .env
 
 # log files
-.log
+*.log
 
 # compiled js
 app.js
+
+# mapping files
+tweets_mapping.json
