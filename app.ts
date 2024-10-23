@@ -189,7 +189,9 @@ async function main() {
                         for(let v=0; v<media?.video_info?.variants?.length; v++) {
                             videoFileName = media.video_info.variants[v].url.split("/").pop()!;
                             const tailIndex = videoFileName.indexOf("?");
-                            videoFilePath = `${baseVideoPath}${videoFileName.substring(0, tailIndex)}`
+                            if( tailIndex>0 )
+                                videoFileName = videoFileName.substring(0, tailIndex);
+                            videoFilePath = `${baseVideoPath}${videoFileName}`;
                             if (FS.existsSync(videoFilePath)) {
                                 localVideoFileNotFound = false
                                 break;
