@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { https } from 'follow-redirects';
+import { http, https } from 'follow-redirects';
 import FS from 'fs';
 import he from 'he';
 import * as process from 'process';
@@ -38,12 +38,21 @@ function isNotEmpty(obj: object) {
 
 async function resolveShorURL(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-        https.get(url, response => {
-            resolve(response.responseUrl);
-        }).on('error', err => {
-            console.warn(`Error parsing url ${url}`);
-            resolve(url);
-        });
+        if( url.startsWith('https') ) {
+            https.get(url, response => {
+                resolve(response.responseUrl);
+            }).on('error', err => {
+                console.warn(`Error parsing url ${url}`);
+                resolve(url);
+            });
+        } else  {
+            http.get(url, response => {
+                resolve(response.responseUrl);
+            }).on('error', err => {
+                console.warn(`Error parsing url ${url}`);
+                resolve(url);
+            });
+        }
     });
 }
 
