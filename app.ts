@@ -27,6 +27,15 @@ let MAX_DATE: Date | undefined = undefined;
 if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
     MAX_DATE = new Date(process.env.MAX_DATE as string);
 
+function isNotEmpty(obj: object) {
+    for (const prop in obj) {
+        if (Object.hasOwn(obj, prop)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 async function resolveShorURL(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
         https.get(url, response => {
@@ -95,7 +104,7 @@ async function main() {
             const tweetDate = new Date(tweet.created_at);
             const tweet_createdAt = tweetDate.toISOString();
 
-            //this cheks assume that the array is sorted by date (first the oldest)
+            //this checks assume that the array is sorted by date (first the oldest)
             if (MIN_DATE != undefined && tweetDate < MIN_DATE)
                 continue;
             if (MAX_DATE != undefined && tweetDate > MAX_DATE)
@@ -141,7 +150,7 @@ async function main() {
                                 mimeType = "image/jpeg"
                                 break;
                             default:
-                                console.error("Unsopported photo file type" + fileType);
+                                console.error("Unsupported photo file type" + fileType);
                                 break;
                         }
                         if (mimeType.length <= 0)
@@ -179,15 +188,16 @@ async function main() {
                         let localVideoFileNotFound = true;
                         for(let v=0; v<media?.video_info?.variants?.length; v++) {
                             videoFileName = media.video_info.variants[v].url.split("/").pop()!;
-                            videoFilePath = `${baseVideoPath}${videoFileName}`;
+                            const tailIndex = videoFileName.indexOf("?");
+                            videoFilePath = `${baseVideoPath}${videoFileName.substring(0, tailIndex)}`
                             if (FS.existsSync(videoFilePath)) {
                                 localVideoFileNotFound = false
                                 break;
                             }
                         }
 
-                        if( localVideoFileNotFound ) {
-                            console.log(`Local video file not found into archive, tweet discarded. Local path: ${videoFilePath}`);
+                        if (localVideoFileNotFound) {
+                            console.warn(`Local video file not found into archive, tweet discarded. Local path: ${videoFilePath}`);
                             continue
                         }
 
@@ -210,7 +220,7 @@ async function main() {
                             uploadUrl.searchParams.append("did", agent.session!.did);
                             uploadUrl.searchParams.append("name", videoFilePath.split("/").pop()!);
     
-                            console.log(" Updaload video");
+                            console.log(" Upload video");
 
                             const uploadResponse = await fetch(uploadUrl, {
                                 method: "POST",
@@ -223,8 +233,16 @@ async function main() {
                             });
                             
                             const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
+                            if (jobStatus.error) {
+                                console.warn(`${jobStatus.error}. Video will be posted as a link`);
+                                continue;
+                            }
                             
                             console.log(" JobId:", jobStatus.jobId);
+                            if (jobStatus.error) {
+                                console.warn(`${jobStatus.error}. Video will be posted as link`);
+                                continue;
+                            }
     
                             let blob: BlobRef | undefined = jobStatus.blob;
     
@@ -272,22 +290,13 @@ async function main() {
                 text: postText
             });
             await rt.detectFacets(agent);
-            let postRecord = {
+            const postRecord = {
                 $type: 'app.bsky.feed.post',
                 text: rt.text,
                 facets: rt.facets,
                 createdAt: tweet_createdAt,
-                embed: embeddedImage.length > 0 ? { $type: "app.bsky.embed.images", images: embeddedImage } : undefined
-            }
-
-            if (embeddedVideo.length > 0) {
-                postRecord = {
-                    $type: 'app.bsky.feed.post',
-                    text: rt.text,
-                    facets: rt.facets,
-                    createdAt: tweet_createdAt,
-                    embed: embeddedVideo
-                }
+                embed: embeddedImage.length > 0 ? { $type: "app.bsky.embed.images", images: embeddedImage } :
+                    isNotEmpty(embeddedVideo) ? embeddedVideo : undefined
             }
 
             if (!SIMULATE) {
