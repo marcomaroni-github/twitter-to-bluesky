@@ -5,7 +5,7 @@ node_modules/
 .env
 
 # log files
-.log
+*.log
 
 # compiled js
 app.js
