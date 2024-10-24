@@ -91,13 +91,29 @@ async function cleanTweetText(tweetFullText: string): Promise<string> {
     return newText;
 }
 
+function cleanTweetFileContent(fileContent) {
+    return fileContent
+        .toString()
+        .replace(/window\.YTD\.tweets\.part[0-9]+ = \[/, "[")
+        .replace(/;$/, "");
+}
+
 async function main() {
     console.log(`Import started at ${new Date().toISOString()}`)
     console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
 
-    const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
+    let fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
+    let tweets = JSON.parse(cleanTweetFileContent(fTweets));
+    let archiveExists = true;
+    for (let i=1; archiveExists; i++) {
+        let archiveFile = `${process.env.ARCHIVE_FOLDER}/data/tweets-part${i}.js`;
+        archiveExists = FS.existsSync(archiveFile)
+        if( archiveExists ) {
+            let fTweetsPart = FS.readFileSync(archiveFile);
+            tweets = tweets.concat(JSON.parse(cleanTweetFileContent(fTweetsPart)));
+        }
+    }    
 
-    const tweets = JSON.parse(fTweets.toString().replace("window.YTD.tweets.part0 = [", "["));
     let importedTweet = 0;
     if (tweets != null && tweets.length > 0) {
         const sortedTweets = tweets.sort((a, b) => {
