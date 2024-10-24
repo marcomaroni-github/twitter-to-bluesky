@@ -1,9 +1,11 @@
 import * as dotenv from 'dotenv';
 import * as process from 'process';
+import { checkPastHandles } from './urlHandler';
 
 dotenv.config();
 
 export const IMPORT_REPLY_USER_ID = process.env.IMPORT_REPLY_USER_ID;
+
 export function getReplyRefs({in_reply_to_user_id, in_reply_to_status_id}, tweets):{
     "root": {
         "uri": string;

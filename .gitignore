@@ -9,6 +9,8 @@ node_modules/
 
 # compiled js
 app.js
+libs/bskyParams.js
+libs/urlHandler.js
 
 # mapping files
 tweets_mapping.json

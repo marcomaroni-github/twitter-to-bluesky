@@ -7,6 +7,7 @@ import URI from 'urijs';
 
 import { BskyAgent, RichText } from '@atproto/api';
 import { getReplyRefs, getEmbeddedUrlAndRecord, getMergeEmbed } from './libs/bskyParams';
+import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
 
 dotenv.config();
 
@@ -18,7 +19,6 @@ const SIMULATE = process.env.SIMULATE === "1";
 
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
-const PAST_HANDLES = process.env.PAST_HANDLES?.split(",");
 
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
 
@@ -53,7 +53,15 @@ async function resolveShorURL(url: string): Promise<string> {
     });
 }
 
-async function cleanTweetText(tweetFullText: string): Promise<string> {
+async function cleanTweetText(
+  tweetFullText: string, 
+  urlMappings: Array<{
+    url: string;
+    expanded_url: string
+  }>, 
+  embeddedUrl: string|null,
+  tweets
+): Promise<string> {
     let newText = tweetFullText;
     const urls: string[] = [];
     URI.withinString(tweetFullText, (url, start, end, source) => {
@@ -64,16 +72,26 @@ async function cleanTweetText(tweetFullText: string): Promise<string> {
     if (urls.length > 0) {
         const newUrls: string[] = [];
         for (let index = 0; index < urls.length; index++) {
-            const newUrl = await resolveShorURL(urls[index]);
-            newUrls.push(newUrl);
+            // use tweet.entities.urls mapping instead, so we can make sure the result is the same as the origin. 
+            const newUrl = urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? await resolveShorURL(urls[index]);
+
+            if(checkPastHandles(newUrl) && newUrl.indexOf("/photo/") == -1 && embeddedUrl != newUrl){
+              // self quote exchange ( tweet-> bsky)
+              newUrls.push(convertToBskyPostUrl(newUrl, tweets))
+            }else{
+              newUrls.push(newUrl)
+            }
+
         }
 
         if (newUrls.length > 0) {
             let j = 0;
             newText = URI.withinString(tweetFullText, (url, start, end, source) => {
                 // I exclude links to photos, because they have already been inserted into the Bluesky post independently
-                if ((PAST_HANDLES || []).some(handle => newUrls[j].startsWith(`https://x.com/${handle}/`))
-                    && newUrls[j].indexOf("/photo/") > 0) {
+                // also exclude embeddedUrl (ex. your twitter quote post)
+                if ( (checkPastHandles(newUrls[j]) && newUrls[j].indexOf("/photo/") > 0 )
+                  || embeddedUrl == newUrls[j]
+                ) {
                     j++;
                     return "";
                 }
@@ -239,7 +257,7 @@ async function main() {
 
                 let postText = tweet.full_text as string;
                 if (!SIMULATE) {
-                    postText = await cleanTweetText(tweet.full_text);
+                    postText = await cleanTweetText(tweet.full_text, tweet.entities?.urls, embeddedUrl, sortedTweets);
 
                     if (postText.length > 300)
                         postText = tweet.full_text;
@@ -278,8 +296,7 @@ async function main() {
                     const recordData = await agent.post(postRecord);
                     const i = recordData.uri.lastIndexOf("/");
                     if (i > 0) {
-                        const rkey = recordData.uri.substring(i + 1);
-                        const postUri = `https://bsky.app/profile/${process.env.BLUESKY_USERNAME!}/post/${rkey}`;
+                        const postUri = getBskyPostUrl(recordData.uri);
                         console.log("Bluesky post create, URL: " + postUri);
 
                         importedTweet++;
