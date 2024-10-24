@@ -11,6 +11,7 @@ node_modules/
 app.js
 libs/bskyParams.js
 libs/urlHandler.js
+libs/bskyAPI.js
 
 # mapping files
 tweets_mapping.json
