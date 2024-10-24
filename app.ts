@@ -6,7 +6,7 @@ import * as process from 'process';
 import URI from 'urijs';
 
 import { BskyAgent, RichText } from '@atproto/api';
-import { getReplyRefs } from './libs/bskyReply';
+import { getReplyRefs, getEmbeddedUrlAndRecord, getMergeEmbed } from './libs/bskyParams';
 
 dotenv.config();
 
@@ -229,6 +229,9 @@ async function main() {
                     continue;
                 }
 
+                // handle bsky embed record
+                const { embeddedUrl = null, embeddedRecord = null } = getEmbeddedUrlAndRecord(tweet.entities?.urls, sortedTweets);
+
                 let replyTo: {}|null = null; 
                 if ( IMPORT_REPLY && !SIMULATE && tweet.in_reply_to_screen_name) {
                     replyTo = getReplyRefs(tweet,sortedTweets);
@@ -257,12 +260,16 @@ async function main() {
                     text: rt.text,
                     facets: rt.facets,
                     createdAt: tweet_createdAt,
-                    embed: embeddedImage.length > 0 ? { $type: "app.bsky.embed.images", images: embeddedImage } : undefined,
                 }
-                
+                const embed = getMergeEmbed(embeddedImage, embeddedRecord);
+                if(embed && Object.keys(embed).length > 0){
+                    Object.assign(postRecord, { embed });
+                }
                 if(replyTo && Object.keys(replyTo).length > 0){
                     Object.assign(postRecord, { reply: replyTo });
                 }
+
+                console.log(postRecord);
 
                 if (!SIMULATE) {
                     //I wait 3 seconds so as not to exceed the api rate limits
