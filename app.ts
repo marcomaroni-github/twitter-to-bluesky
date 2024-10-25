@@ -106,6 +106,13 @@ async function cleanTweetText(
     return newText;
 }
 
+function cleanTweetFileContent(fileContent) {
+    return fileContent
+        .toString()
+        .replace(/window\.YTD\.tweets\.part[0-9]+ = \[/, "[")
+        .replace(/;$/, "");
+}
+
 function getTweets(){
     // get cache (from last time imported)
     let caches = []
@@ -115,7 +122,17 @@ function getTweets(){
 
     // get original tweets
     const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
-    const tweets = JSON.parse(fTweets.toString().replace("window.YTD.tweets.part0 = [", "["));
+    let tweets = JSON.parse(cleanTweetFileContent(fTweets));
+
+    let archiveExists = true;
+    for (let i=1; archiveExists; i++) {
+        let archiveFile = `${process.env.ARCHIVE_FOLDER}/data/tweets-part${i}.js`;
+        archiveExists = FS.existsSync(archiveFile)
+        if( archiveExists ) {
+            let fTweetsPart = FS.readFileSync(archiveFile);
+            tweets = tweets.concat(JSON.parse(cleanTweetFileContent(fTweetsPart)));
+        }
+    }  
 
     // merge alreadyImported into tweets
     const alreadyImported = caches.filter(({ bsky })=> bsky);
@@ -133,7 +150,6 @@ function getTweets(){
 async function main() {
     console.log(`Import started at ${new Date().toISOString()}`)
     console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
-
 
     const tweets = getTweets();
   
