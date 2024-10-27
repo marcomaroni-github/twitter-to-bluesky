@@ -3,8 +3,7 @@ import * as process from 'process';
 
 dotenv.config();
 
-
-export const PAST_HANDLES = process.env.PAST_HANDLES?.split(",");
+export const PAST_HANDLES = process.env.PAST_HANDLES!.split(",");
 
 export function checkPastHandles(url: string): boolean{
     return (PAST_HANDLES || []).some(handle => 

@@ -4,9 +4,9 @@ import { checkPastHandles } from './urlHandler';
 
 dotenv.config();
 
-export const IMPORT_REPLY_USER_ID = process.env.IMPORT_REPLY_USER_ID;
+export const PAST_HANDLES = process.env.PAST_HANDLES!.split(",");
 
-export function getReplyRefs({in_reply_to_user_id, in_reply_to_status_id}, tweets):{
+export function getReplyRefs({in_reply_to_screen_name, in_reply_to_status_id}, tweets):{
     "root": {
         "uri": string;
         "cid": string;
@@ -16,8 +16,9 @@ export function getReplyRefs({in_reply_to_user_id, in_reply_to_status_id}, tweet
         "cid":string;
     },
 }|null{
-    if(in_reply_to_user_id != IMPORT_REPLY_USER_ID){
-        console.log(`Skip Reply (wrong reply user_id :${IMPORT_REPLY_USER_ID}:${in_reply_to_user_id})`);
+    const importReplyScreenName = PAST_HANDLES[0];
+    if(in_reply_to_screen_name != importReplyScreenName){
+        console.log(`Skip Reply (wrong reply user_id :${importReplyScreenName}:${in_reply_to_screen_name})`);
         return null;
     }
 
