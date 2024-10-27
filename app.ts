@@ -21,7 +21,7 @@ const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limit
 
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
 
-const IMPORT_REPLY = process.env.IMPORT_REPLY === "1";
+const NOT_IMPORT_REPLY = process.env.NOT_IMPORT_REPLY === "1";
 
 
 let MIN_DATE: Date | undefined = undefined;
@@ -149,6 +149,7 @@ function getTweets(){
 async function main() {
     console.log(`Import started at ${new Date().toISOString()}`)
     console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
+    console.log(`IMPORT REPLY is ${!NOT_IMPORT_REPLY ? "ON" : "OFF"}`);
 
     const tweets = getTweets();
   
@@ -186,7 +187,7 @@ async function main() {
                 console.log(` Created at ${tweet_createdAt}`);
                 console.log(` Full text '${tweet.full_text}'`);
 
-                if (!IMPORT_REPLY && tweet.in_reply_to_screen_name) {
+                if (NOT_IMPORT_REPLY && tweet.in_reply_to_screen_name) {
                     console.log("Discarded (reply)");
                     continue;
                 }
@@ -266,7 +267,7 @@ async function main() {
                 const { embeddedUrl = null, embeddedRecord = null } = getEmbeddedUrlAndRecord(tweet.entities?.urls, sortedTweets);
 
                 let replyTo: {}|null = null; 
-                if ( IMPORT_REPLY && !SIMULATE && tweet.in_reply_to_screen_name) {
+                if ( !NOT_IMPORT_REPLY && !SIMULATE && tweet.in_reply_to_screen_name) {
                     replyTo = getReplyRefs(tweet,sortedTweets);
                 }
 
