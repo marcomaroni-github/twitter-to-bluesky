@@ -6,7 +6,8 @@ import * as process from 'process';
 import URI from 'urijs';
 
 import { BskyAgent, RichText } from '@atproto/api';
-import { getReplyRefs, getEmbeddedUrlAndRecord, getMergeEmbed } from './libs/bskyParams';
+
+import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
 
 dotenv.config();
@@ -259,7 +260,7 @@ async function main() {
                 }
 
                 if (tweetWithEmbeddedVideo) {
-                    console.log("Discarded (containnig videos)");
+                    console.log("Discarded (containing videos)");
                     continue;
                 }
 
