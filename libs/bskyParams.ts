@@ -16,9 +16,9 @@ export function getReplyRefs({in_reply_to_screen_name, in_reply_to_status_id}, t
         "cid":string;
     },
 }|null{
-    const importReplyScreenName = PAST_HANDLES[0];
-    if(in_reply_to_screen_name != importReplyScreenName){
-        console.log(`Skip Reply (wrong reply user_id :${importReplyScreenName}:${in_reply_to_screen_name})`);
+    const importReplyScreenNames = PAST_HANDLES || [];
+    if(importReplyScreenNames.every(handle => in_reply_to_screen_name != handle)){
+        console.log(`Skip Reply (wrong reply screen name :${in_reply_to_screen_name})`, importReplyScreenNames);
         return null;
     }
 
