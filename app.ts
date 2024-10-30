@@ -5,14 +5,14 @@ import he from 'he';
 import * as process from 'process';
 import URI from 'urijs';
 
-import { BskyAgent, RichText } from '@atproto/api';
+import { AppBskyEmbedVideo, AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
 
 dotenv.config();
 
-const agent = new BskyAgent({
+const agent = new AtpAgent({
     service: 'https://bsky.social',
 })
 
@@ -75,7 +75,10 @@ async function cleanTweetText(
             // use tweet.entities.urls mapping instead, so we can make sure the result is the same as the origin. 
             const newUrl = urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? await resolveShorURL(urls[index]);
 
-            if(checkPastHandles(newUrl) && newUrl.indexOf("/photo/") == -1 && embeddedUrl != newUrl){
+            if (   checkPastHandles(newUrl) 
+                && newUrl.indexOf("/photo/") == -1 
+                && newUrl.indexOf("/video/") == -1 
+                && embeddedUrl != newUrl) {
               // self quote exchange ( tweet-> bsky)
               newUrls.push(convertToBskyPostUrl(newUrl, tweets))
             }else{
@@ -89,7 +92,7 @@ async function cleanTweetText(
             newText = URI.withinString(tweetFullText, (url, start, end, source) => {
                 // I exclude links to photos, because they have already been inserted into the Bluesky post independently
                 // also exclude embeddedUrl (ex. your twitter quote post)
-                if ( (checkPastHandles(newUrls[j]) && newUrls[j].indexOf("/photo/") > 0 )
+                if ( (checkPastHandles(newUrls[j]) && (newUrls[j].indexOf("/photo/") > 0 || newUrls[j].indexOf("/video/") > 0) )
                   || embeddedUrl == newUrls[j]
                 ) {
                     j++;
@@ -203,6 +206,7 @@ async function main() {
 
                 let tweetWithEmbeddedVideo = false;
                 let embeddedImage = [] as any;
+                let embeddedVideo = {} as any;
                 if (tweet.extended_entities?.media) {
 
                     for (let index = 0; index < tweet.extended_entities.media.length; index++) {
@@ -253,15 +257,96 @@ async function main() {
                         }
 
                         if (media?.type === "video") {
-                            tweetWithEmbeddedVideo = true;
-                            continue;
+                            const baseVideoPath = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-`;
+                            let videoFileName = '';
+                            let videoFilePath = '';
+                            let localVideoFileNotFound = true;
+                            for(let v=0; v<media?.video_info?.variants?.length; v++) {
+                                videoFileName = media.video_info.variants[v].url.split("/").pop()!;
+                                const tailIndex = videoFileName.indexOf("?");
+                                if( tailIndex>0 )
+                                    videoFileName = videoFileName.substring(0, tailIndex);
+                                videoFilePath = `${baseVideoPath}${videoFileName}`;
+                                if (FS.existsSync(videoFilePath)) {
+                                    localVideoFileNotFound = false
+                                    break;
+                                }
+                            }
+    
+                            if (localVideoFileNotFound) {
+                                console.warn(`Local video file not found into archive, tweet discarded. Local path: ${videoFilePath}`);
+                                continue
+                            }
+    
+                            if (!SIMULATE) {
+                                const { data: serviceAuth } = await agent.com.atproto.server.getServiceAuth(
+                                    {
+                                      aud: `did:web:${agent.dispatchUrl.host}`,
+                                      lxm: "com.atproto.repo.uploadBlob",
+                                      exp: Date.now() / 1000 + 60 * 30, // 30 minutes
+                                    },
+                                  );
+        
+                                const token = serviceAuth.token;
+        
+                                const videoBuffer = FS.readFileSync(videoFilePath);
+                                
+                                const uploadUrl = new URL(
+                                    "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo",
+                                  );
+                                uploadUrl.searchParams.append("did", agent.session!.did);
+                                uploadUrl.searchParams.append("name", videoFilePath.split("/").pop()!+"1");
+        
+                                console.log(" Upload video");
+    
+                                const uploadResponse = await fetch(uploadUrl, {
+                                    method: "POST",
+                                    headers: {
+                                        Authorization: `Bearer ${token}`,
+                                        "Content-Type": "video/mp4",
+                                        "Content-Length": String(videoBuffer.length),
+                                    },
+                                    body: videoBuffer,
+                                });
+                                
+                                const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
+                                if (jobStatus.error) {
+                                    console.warn(`${jobStatus.error}. Video will be posted as a link`);
+                                    continue;
+                                }
+                                
+                                console.log(" JobId:", jobStatus.jobId);
+                                if (jobStatus.error) {
+                                    console.warn(`${jobStatus.error}. Video will be posted as link`);
+                                    continue;
+                                }
+        
+                                let blob: BlobRef | undefined = jobStatus.blob;
+        
+                                const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
+                                
+                                while (!blob) {
+                                  const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
+                                    { jobId: jobStatus.jobId },
+                                  );
+                                  console.log("  Status:",
+                                    status.jobStatus.state,
+                                    status.jobStatus.progress || "",
+                                  );
+                                  if (status.jobStatus.blob) {
+                                    blob = status.jobStatus.blob;
+                                  }
+                                  // wait a second
+                                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                                }
+    
+                                embeddedVideo = {
+                                    $type: "app.bsky.embed.video",
+                                    video: blob,
+                                } satisfies AppBskyEmbedVideo.Main;
+                            }
                         }
                     }
-                }
-
-                if (tweetWithEmbeddedVideo) {
-                    console.log("Discarded (containing videos)");
-                    continue;
                 }
 
                 // handle bsky embed record
@@ -296,7 +381,7 @@ async function main() {
                     facets: rt.facets,
                     createdAt: tweet_createdAt,
                 }
-                const embed = getMergeEmbed(embeddedImage, embeddedRecord);
+                const embed = getMergeEmbed(embeddedImage, embeddedVideo, embeddedRecord);
                 if(embed && Object.keys(embed).length > 0){
                     Object.assign(postRecord, { embed });
                 }

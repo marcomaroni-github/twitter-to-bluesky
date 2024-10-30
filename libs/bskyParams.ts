@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import * as process from 'process';
+
 import { checkPastHandles } from './urlHandler';
 
 dotenv.config();
@@ -95,22 +96,25 @@ export function getEmbeddedUrlAndRecord(
 }
 
 
-export function getMergeEmbed(images:[] = [], record: {}|null = null): {}|null{
+export function getMergeEmbed(images:[] = [], embeddedVideo:{}|null = null, record: {}|null = null): {}|null{
     let mediaData :{}|null = null;
     if(images.length > 0 ){
+
         mediaData = { 
           $type: "app.bsky.embed.images", 
           images 
         };
-      }
-    
-      let recordData :{}|null = null;
-      if(record && Object.keys(record).length > 0){
+    } else if ( embeddedVideo != null ) {
+        mediaData = embeddedVideo;
+    }
+   
+    let recordData :{}|null = null;
+    if(record && Object.keys(record).length > 0) {
         recordData = {
-          $type: "app.bsky.embed.record",
-          record
+            $type: "app.bsky.embed.record",
+            record
         };
-      }
+    }
     
     if(mediaData && recordData){
       return {
@@ -120,7 +124,7 @@ export function getMergeEmbed(images:[] = [], record: {}|null = null): {}|null{
             record // Yes, we should use `record` instead of `recordData`. Because the api params should be like { record: { uri: string, cid: string  } }
         }
       };
-    }
+    } 
 
     return mediaData || recordData;
       
