@@ -204,9 +204,8 @@ async function main() {
                     continue;
                 }
 
-                let tweetWithEmbeddedVideo = false;
                 let embeddedImage = [] as any;
-                let embeddedVideo = {} as any;
+                let embeddedVideo: BlobRef | undefined = undefined;
                 if (tweet.extended_entities?.media) {
 
                     for (let index = 0; index < tweet.extended_entities.media.length; index++) {
@@ -311,15 +310,9 @@ async function main() {
                                 
                                 const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
                                 if (jobStatus.error) {
-                                    console.warn(`${jobStatus.error}. Video will be posted as a link`);
-                                    continue;
+                                    console.warn(` Video job status: '${jobStatus.error}'. Video will be posted as a link`);
                                 }
-                                
                                 console.log(" JobId:", jobStatus.jobId);
-                                if (jobStatus.error) {
-                                    console.warn(`${jobStatus.error}. Video will be posted as link`);
-                                    continue;
-                                }
         
                                 let blob: BlobRef | undefined = jobStatus.blob;
         
@@ -340,10 +333,7 @@ async function main() {
                                   await new Promise((resolve) => setTimeout(resolve, 1000));
                                 }
     
-                                embeddedVideo = {
-                                    $type: "app.bsky.embed.video",
-                                    video: blob,
-                                } satisfies AppBskyEmbedVideo.Main;
+                                embeddedVideo = blob;
                             }
                         }
                     }

@@ -99,13 +99,15 @@ export function getEmbeddedUrlAndRecord(
 export function getMergeEmbed(images:[] = [], embeddedVideo:{}|null = null, record: {}|null = null): {}|null{
     let mediaData :{}|null = null;
     if(images.length > 0 ){
-
         mediaData = { 
           $type: "app.bsky.embed.images", 
           images 
         };
     } else if ( embeddedVideo != null ) {
-        mediaData = embeddedVideo;
+        mediaData = {
+            $type: "app.bsky.embed.video",
+            video: embeddedVideo,
+        };
     }
    
     let recordData :{}|null = null;
