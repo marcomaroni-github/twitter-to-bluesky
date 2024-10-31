@@ -11,7 +11,6 @@ They use the official archive export file format from X/Twitter, this utility re
 ## Which tweets are NOT imported
 
 - Retweets and tweets that start with a quote from another user @ or with RT.
-- Tweets that contain videos (the feature is in testing and not yet released, if anyone wants to test it this is the [branch](https://github.com/marcomaroni-github/twitter-to-bluesky/tree/video-support) )
 
 ## Prerequisite
 
