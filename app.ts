@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv';
 import { http, https } from 'follow-redirects';
 import FS from 'fs';
 import he from 'he';
-import * as process from 'process';
+import process from 'process';
 import URI from 'urijs';
 
 import { BskyAgent, RichText } from '@atproto/api';
@@ -32,6 +32,8 @@ if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
 let MAX_DATE: Date | undefined = undefined;
 if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
     MAX_DATE = new Date(process.env.MAX_DATE as string);
+
+let alreadySavedCache = false;
 
 async function resolveShorURL(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
@@ -146,6 +148,15 @@ function getTweets(){
     return tweets;
 }
 
+function saveCache(sortedTweets) {
+    if (alreadySavedCache) {
+        return;
+    }
+
+    alreadySavedCache = true;
+    console.log('Saving already imported tweets to', TWEETS_MAPPING_FILE_NAME);
+    FS.writeFileSync(TWEETS_MAPPING_FILE_NAME, JSON.stringify(sortedTweets, null, 4));
+}
 
 async function main() {
     console.log(`Import started at ${new Date().toISOString()}`)
@@ -164,6 +175,9 @@ async function main() {
 
         await agent.login({ identifier: process.env.BLUESKY_USERNAME!, password: process.env.BLUESKY_PASSWORD! });
        
+        process.on('exit', () => saveCache(sortedTweets));
+        process.on('SIGINT', () => process.exit());
+
         try{
             for (let index = 0; index < sortedTweets.length; index++) {
                 const currentData =  sortedTweets[index];
@@ -334,7 +348,7 @@ async function main() {
             throw $e;
         }finally {
             // always update the mapping file
-            FS.writeFileSync(TWEETS_MAPPING_FILE_NAME, JSON.stringify(sortedTweets, null, 4))
+            saveCache(sortedTweets);
         }
     }
 
