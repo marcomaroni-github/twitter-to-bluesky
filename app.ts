@@ -35,20 +35,22 @@ if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
 
 async function resolveShorURL(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-        if( url.startsWith('https') ) {
+        if (url.startsWith('https://')) {
             https.get(url, response => {
                 resolve(response.responseUrl);
             }).on('error', err => {
                 console.warn(`Error parsing url ${url}`);
                 resolve(url);
             });
-        } else  {
+        } else if (url.startsWith('http://')) {
             http.get(url, response => {
                 resolve(response.responseUrl);
             }).on('error', err => {
                 console.warn(`Error parsing url ${url}`);
                 resolve(url);
             });
+        } else {
+            resolve(url);
         }
     });
 }
