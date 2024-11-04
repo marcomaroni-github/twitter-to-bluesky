@@ -9,6 +9,8 @@
   "scripts": {
     "start": "npx tsc && node app.js",
     "start_log": "npx tsc && node app.js > import.log",
+    "format": "biome format --write",
+    "test": "biome check",
     "compile": "npx tsc"
   },
   "author": "",
@@ -23,6 +25,7 @@
     "urijs": "^1.19.11"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@types/follow-redirects": "^1.14.4",
     "@types/he": "^1.2.3",
     "@types/node": "^20.16.12",
