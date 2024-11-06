@@ -13,5 +13,8 @@ libs/bskyParams.js
 libs/urlHandler.js
 libs/bskyAPI.js
 
+# VS Code debug config file
+.vscode/launch.json
+
 # mapping files
 tweets_mapping.json
