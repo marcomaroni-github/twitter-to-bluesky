@@ -232,6 +232,7 @@ async function main() {
                             const it = media?.media_url.lastIndexOf(".");
                             const fileType = media?.media_url.substring(it + 1)
                             let mimeType = "";
+                                                        
                             switch (fileType) {
                                 case "png":
                                     mimeType = "image/png"
@@ -240,7 +241,7 @@ async function main() {
                                     mimeType = "image/jpeg"
                                     break;
                                 default:
-                                    console.error("Unsopported photo file type" + fileType);
+                                    console.error("Unsupported photo file type" + fileType);
                                     break;
                             }
                             if (mimeType.length <= 0)
@@ -252,6 +253,18 @@ async function main() {
                             }
 
                             const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
+
+                            let localMediaFileNotFound = true;
+                            if (FS.existsSync(mediaFilename)) {
+                                localMediaFileNotFound = false
+                                break;
+                            }
+    
+                            if (!localMediaFileNotFound) {
+                                console.warn(`Local media file not found into archive, tweet discarded. Local path: ${mediaFilename}`);
+                                continue
+                            }
+                            
                             const imageBuffer = FS.readFileSync(mediaFilename);
 
                             if (!SIMULATE) {
