@@ -9,6 +9,7 @@ import { AppBskyEmbedVideo, AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
+import path from 'path';
 
 dotenv.config();
 
@@ -252,15 +253,25 @@ async function main() {
                                 break;
                             }
 
-                            const mediaFilename = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-${media?.media_url.substring(i + 1)}`;
+                            let mediaFilename = `${process.env.ARCHIVE_FOLDER}${path.sep}data${path.sep}tweets_media${path.sep}${tweet.id}-${media?.media_url.substring(i + 1)}`;
 
                             let localMediaFileNotFound = true;
                             if (FS.existsSync(mediaFilename)) {
                                 localMediaFileNotFound = false
                                 break;
                             }
+
+                            if (localMediaFileNotFound) {
+                                const wildcardPath = `${process.env.ARCHIVE_FOLDER}${path.sep}data${path.sep}tweets_media${path.sep}${tweet.id}-*`;
+                                const files = FS.readdirSync(path.dirname(wildcardPath)).filter(file => file.startsWith(`${tweet.id}-`));
+
+                                if (files.length > 0) {
+                                    mediaFilename = path.join(path.dirname(wildcardPath), files[0]);
+                                    localMediaFileNotFound = false;
+                                }
+                            }
     
-                            if (!localMediaFileNotFound) {
+                            if (localMediaFileNotFound) {
                                 console.warn(`Local media file not found into archive, tweet discarded. Local path: ${mediaFilename}`);
                                 continue
                             }
