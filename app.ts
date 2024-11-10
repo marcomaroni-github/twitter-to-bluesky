@@ -208,12 +208,12 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                 oembetter.fetch(url, 
                     { headers: { 'User-Agent': USER_AGENT } },
                     (err, response) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(response);
-                }
-                });
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve(response);
+                        }
+                    });
             });
         } catch (error: any) {
             console.debug(`Error fetching oembed: ${error.message}`);
@@ -224,21 +224,25 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
             card.description = oembedResult.description || card.description;
             if (oembedResult.thumbnail_url) {
                 const imgResp = await fetch(oembedResult.thumbnail_url);
-                const imgBuffer = await imgResp.buffer();
+                if (imgResp.ok) {
+                    const imgBuffer = await imgResp.arrayBuffer();
 
-                const blobRecord = await agent.uploadBlob(imgBuffer, {
-                    encoding: imgResp.headers.get('content-type') || 'image/jpeg'
-                });
+                    const blobRecord = await agent.uploadBlob(imgBuffer, {
+                        encoding: imgResp.headers.get('content-type') || 'image/jpeg'
+                    });
 
-                card.thumb = {
-                    $type: "blob",
-                    ref: blobRecord.data.blob.ref,
-                    mimeType: blobRecord.data.blob.mimeType,
-                    size: blobRecord.data.blob.size
-                };
+                    card.thumb = {
+                        $type: "blob",
+                        ref: blobRecord.data.blob.ref,
+                        mimeType: blobRecord.data.blob.mimeType,
+                        size: blobRecord.data.blob.size
+                    };
+                }
             }
         }
-        else {
+        
+        if (card.title.length == 0 && card.description.length == 0 && card.thumb.size == 0)
+        {
             const resp = await fetch(url, {
                 headers: {
                 'User-Agent': USER_AGENT,
@@ -275,18 +279,20 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                 }
 
                 const imgResp = await fetch(imgUrl);
-                const imgBuffer = await imgResp.buffer();
+                if (imgResp.ok) {
+                    const imgBuffer = await imgResp.arrayBuffer();
 
-                const blobRecord = await agent.uploadBlob(imgBuffer, {
-                    encoding: imgResp.headers.get('content-type') || 'image/jpeg'
-                });
+                    const blobRecord = await agent.uploadBlob(imgBuffer, {
+                        encoding: imgResp.headers.get('content-type') || 'image/jpeg'
+                    });
 
-                card.thumb = {
-                    $type: "blob",
-                    ref: blobRecord.data.blob.ref,
-                    mimeType: blobRecord.data.blob.mimeType,
-                    size: blobRecord.data.blob.size
-                };
+                    card.thumb = {
+                        $type: "blob",
+                        ref: blobRecord.data.blob.ref,
+                        mimeType: blobRecord.data.blob.mimeType,
+                        size: blobRecord.data.blob.size
+                    };
+                }
             }
         }
     } catch (error: any) {
@@ -426,7 +432,7 @@ async function main() {
                                     break;
                                 default:
                                     console.error("Unsupported photo file type" + fileType);
-                                    break;
+                                    continue;
                             }
                             if (mimeType.length <= 0)
                                 continue;
