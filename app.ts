@@ -379,7 +379,7 @@ async function main() {
                 let postText = tweet.full_text as string;
                 if (!SIMULATE) {
                     postText = await cleanTweetText(tweet.full_text, tweet.entities?.urls, embeddedUrl, sortedTweets);
-                    postText = postText.replaceAll(/(@)[^\s]+\.\w+/g, "@​");
+                    postText = postText.replaceAll(/(@)([^\s]+\.\w+)/g, "@​$2");
 
                     if (postText.length > 300)
                         postText = tweet.full_text;
