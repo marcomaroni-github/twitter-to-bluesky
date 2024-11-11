@@ -229,9 +229,17 @@ async function main() {
                     continue;
                 }
 
-                if (tweet.in_reply_to_screen_name && PAST_HANDLES.findIndex(handle=>handle===tweet.in_reply_to_screen_name)<0) {
-                    console.log("Discarded (reply to another user)");
-                    continue;
+                if (tweet.in_reply_to_screen_name) {
+                    if (PAST_HANDLES.some(handle => tweet.in_reply_to_screen_name == handle)) {
+                        // Remove "@screen_name" from the beginning of the tweet's full text
+                        const replyPrefix = `@${tweet.in_reply_to_screen_name} `;
+                        if (tweet.full_text.startsWith(replyPrefix)) {
+                            tweet.full_text = tweet.full_text.replace(replyPrefix, '').trim();
+                        }
+                    } else {
+                        console.log("Discarded (reply to another user)");
+                        continue;
+                    }
                 }
 
                 if (tweet.full_text.startsWith("RT ")) {
