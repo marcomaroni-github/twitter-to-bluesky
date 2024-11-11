@@ -8,7 +8,9 @@ import URI from 'urijs';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
-import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
+import {
+    getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs, PAST_HANDLES
+} from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
 
 dotenv.config();
@@ -226,10 +228,20 @@ async function main() {
                     console.log("Discarded (reply)");
                     continue;
                 }
-                if (tweet.full_text.startsWith("@")) {
-                    console.log("Discarded (start with @)");
-                    continue;
+
+                if (tweet.in_reply_to_screen_name) {
+                    if (PAST_HANDLES.some(handle => tweet.in_reply_to_screen_name == handle)) {
+                        // Remove "@screen_name" from the beginning of the tweet's full text
+                        const replyPrefix = `@${tweet.in_reply_to_screen_name} `;
+                        if (tweet.full_text.startsWith(replyPrefix)) {
+                            tweet.full_text = tweet.full_text.replace(replyPrefix, '').trim();
+                        }
+                    } else {
+                        console.log("Discarded (reply to another user)");
+                        continue;
+                    }
                 }
+
                 if (tweet.full_text.startsWith("RT ")) {
                     console.log("Discarded (start with RT)");
                     continue;
