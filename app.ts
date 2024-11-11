@@ -92,7 +92,15 @@ async function cleanTweetText(
         const newUrls: string[] = [];
         for (let index = 0; index < urls.length; index++) {
             // use tweet.entities.urls mapping instead, so we can make sure the result is the same as the origin. 
-            const newUrl = urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? await resolveShorURL(urls[index]);
+            const newUrl = await Promise.race([
+            new Promise<string>((resolve, reject) => {
+                setTimeout(() => reject(new Error('Timeout')), 5000);
+            }),
+            urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? resolveShorURL(urls[index])
+        ]).catch(err => {
+            console.warn(`Error resolving URL: ${urls[index]}  ${err.message}`);
+            return urls[index];
+        });
 
             if (   checkPastHandles(newUrl) 
                 && newUrl.indexOf("/photo/") == -1 
@@ -343,15 +351,15 @@ async function main() {
                                 const token = serviceAuth.token;
         
                                 const videoBuffer = FS.readFileSync(videoFilePath);
-                                
+
                                 const uploadUrl = new URL(
                                     "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo",
                                   );
                                 uploadUrl.searchParams.append("did", agent.session!.did);
                                 uploadUrl.searchParams.append("name", videoFilePath.split("/").pop()!+"1");
-        
+
                                 console.log(" Upload video");
-    
+
                                 const uploadResponse = await fetch(uploadUrl, {
                                     method: "POST",
                                     headers: {
@@ -361,33 +369,37 @@ async function main() {
                                     },
                                     body: videoBuffer,
                                 });
-                                
+
                                 const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
                                 if (jobStatus.error) {
                                     console.warn(` Video job status: '${jobStatus.error}'. Video will be posted as a link`);
+                                } else {
+                                    console.log(" JobId:", jobStatus.jobId);
+                                    if (jobStatus.jobId === undefined) {
+                                        console.log("skipping video since JobId is undefined");
+                                    } else {
+                                        let blob: BlobRef | undefined = jobStatus.blob;
+
+                                        const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
+
+                                        while (!blob) {
+                                            const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
+                                              { jobId: jobStatus.jobId },
+                                            );
+                                            console.log("  Status:",
+                                                status.jobStatus.state,
+                                                status.jobStatus.progress || "",
+                                            );
+                                            if (status.jobStatus.blob) {
+                                                blob = status.jobStatus.blob;
+                                            }
+                                            // wait a second
+                                            await new Promise((resolve) => setTimeout(resolve, 1000));
+                                        }
+ 
+                                        embeddedVideo = blob;
+                                    }
                                 }
-                                console.log(" JobId:", jobStatus.jobId);
-        
-                                let blob: BlobRef | undefined = jobStatus.blob;
-        
-                                const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
-                                
-                                while (!blob) {
-                                  const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
-                                    { jobId: jobStatus.jobId },
-                                  );
-                                  console.log("  Status:",
-                                    status.jobStatus.state,
-                                    status.jobStatus.progress || "",
-                                  );
-                                  if (status.jobStatus.blob) {
-                                    blob = status.jobStatus.blob;
-                                  }
-                                  // wait a second
-                                  await new Promise((resolve) => setTimeout(resolve, 1000));
-                                }
-    
-                                embeddedVideo = blob;
                             }
                         }
                     }
