@@ -733,22 +733,29 @@ async function main() {
                     //I wait 3 seconds so as not to exceed the api rate limits
                     await new Promise(resolve => setTimeout(resolve, API_DELAY));
 
-                    const recordData = await rateLimitedAgent.post(postRecord);
-                    const i = recordData.uri.lastIndexOf("/");
-                    if (i > 0) {
-                        const postUri = getBskyPostUrl(recordData.uri);
-                        console.log("Bluesky post create, URL: " + postUri);
+                    try 
+                    {
+                        const recordData = await rateLimitedAgent.post(postRecord);
+                        const i = recordData.uri.lastIndexOf("/");
+                        if (i > 0) {
+                            const postUri = getBskyPostUrl(recordData.uri);
+                            console.log("Bluesky post create, URL: " + postUri);
 
-                        importedTweet++;
-                    } else {
-                        console.warn(recordData);
+                            importedTweet++;
+                        } else {
+                            console.warn(recordData);
+                        }
+
+                        // store bsky data into sortedTweets (then write into the mapping file)
+                        currentData.bsky = {
+                            uri: recordData.uri,
+                            cid: recordData.cid,
+                        };
                     }
-
-                    // store bsky data into sortedTweets (then write into the mapping file)
-                    currentData.bsky = {
-                        uri: recordData.uri,
-                        cid: recordData.cid,
-                    };
+                    catch (error: any) {
+                        console.warn(`Error posting tweet: ${postRecord} ${error.message}`);
+                    }
+                    
                 } else {
                     importedTweet++;
                 }
