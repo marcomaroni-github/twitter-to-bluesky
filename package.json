@@ -20,7 +20,8 @@
     "he": "^1.2.0",
     "process": "^0.11.10",
     "typescript": "^5.6.3",
-    "urijs": "^1.19.11"
+    "urijs": "^1.19.11",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/follow-redirects": "^1.14.4",

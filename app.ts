@@ -5,6 +5,7 @@ import he from 'he';
 import path from 'path';
 import process from 'process';
 import URI from 'urijs';
+import sharp from 'sharp';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
@@ -18,12 +19,10 @@ const agent = new AtpAgent({
 })
 
 const SIMULATE = process.env.SIMULATE === "1";
-
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
-
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
-
 const DISABLE_IMPORT_REPLY = process.env.DISABLE_IMPORT_REPLY === "1";
+const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
 
 let MIN_DATE: Date | undefined = undefined;
@@ -178,6 +177,35 @@ function saveCache(sortedTweets) {
     FS.writeFileSync(TWEETS_MAPPING_FILE_NAME, JSON.stringify(sortedTweets, null, 4));
 }
 
+
+
+async function recompressImageIfNeeded(filePath: string): Promise<Buffer> {
+    let quality = 70; // Start at 70% quality
+    let image = sharp(filePath);
+    const metadata = await image.metadata();
+
+    // Convert non-JPEG images to JPEG format initially
+    if (metadata.format !== 'jpeg') {
+        image = image.toFormat('jpeg');
+    }
+
+    let options : sharp.JpegOptions = { quality: quality };
+    let buffer = await image.jpeg(options).toBuffer();
+
+    // Recompression loop if the buffer size is still above 1MB
+    while (buffer.length > MAX_FILE_SIZE && quality > 10) {
+        quality -= 10; // Step down quality by 10%
+        options = { quality: quality };
+        buffer = await sharp(filePath).jpeg(options).toBuffer();
+    }
+
+    if (buffer.length > MAX_FILE_SIZE) {
+        console.warn(`Could not reduce image size below 1MB for file: ${filePath}`);
+    }
+
+    return buffer;
+}
+
 async function main() {
     console.log(`Import started at ${new Date().toISOString()}`)
     console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
@@ -289,7 +317,13 @@ async function main() {
                                 continue
                             }
                             
-                            const imageBuffer = FS.readFileSync(mediaFilename);
+                            let imageBuffer = FS.readFileSync(mediaFilename);
+
+                            // Check if the image size exceeds 1MB or if it’s a non-JPEG format
+                            if (mimeType === 'image/png' || mimeType === 'image/webp' || mimeType === 'image/jpeg' && imageBuffer.length > MAX_FILE_SIZE) {
+                                imageBuffer = await recompressImageIfNeeded(mediaFilename);
+                                mimeType = 'image/jpeg';
+                            }
 
                             if (!SIMULATE) {
                                 const blobRecord = await agent.uploadBlob(imageBuffer, {
@@ -304,7 +338,7 @@ async function main() {
                                         mimeType: blobRecord.data.blob.mimeType,
                                         size: blobRecord.data.blob.size
                                     }
-                                })
+                                });
                             }
                         }
 
