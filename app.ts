@@ -2,14 +2,14 @@ import * as dotenv from 'dotenv';
 import { http, https } from 'follow-redirects';
 import FS from 'fs';
 import he from 'he';
+import path from 'path';
 import process from 'process';
 import URI from 'urijs';
 
-import { AppBskyEmbedVideo, AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
+import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
-import path from 'path';
 
 dotenv.config();
 
@@ -272,7 +272,6 @@ async function main() {
                             let localMediaFileNotFound = true;
                             if (FS.existsSync(mediaFilename)) {
                                 localMediaFileNotFound = false
-                                break;
                             }
 
                             if (localMediaFileNotFound) {
