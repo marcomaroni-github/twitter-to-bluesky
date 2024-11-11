@@ -2,14 +2,14 @@ import * as dotenv from 'dotenv';
 import { http, https } from 'follow-redirects';
 import FS from 'fs';
 import he from 'he';
+import path from 'path';
 import process from 'process';
 import URI from 'urijs';
 
-import { AppBskyEmbedVideo, AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
+import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
-import path from 'path';
 
 dotenv.config();
 
@@ -22,6 +22,8 @@ const SIMULATE = process.env.SIMULATE === "1";
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
+
+const PAST_HANDLES = process.env.PAST_HANDLES!.split(",");
 
 const DISABLE_IMPORT_REPLY = process.env.DISABLE_IMPORT_REPLY === "1";
 
@@ -226,10 +228,12 @@ async function main() {
                     console.log("Discarded (reply)");
                     continue;
                 }
-                if (tweet.full_text.startsWith("@")) {
-                    console.log("Discarded (start with @)");
+                
+                if (tweet.in_reply_to_screen_name && PAST_HANDLES.findIndex(handle=>handle===tweet.in_reply_to_screen_name)<0) {
+                    console.log("Discarded (reply to other user)");
                     continue;
                 }
+
                 if (tweet.full_text.startsWith("RT ")) {
                     console.log("Discarded (start with RT)");
                     continue;
