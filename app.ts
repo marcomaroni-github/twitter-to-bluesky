@@ -232,16 +232,18 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                         imgBuffer = await recompressImageIfNeeded(imgBuffer);
                     }
 
-                    const blobRecord = await agent.uploadBlob(imgBuffer, {
-                        encoding: mimeType
-                    });
+                    if ( mimeType.startsWith('image/') ) {
+                        const blobRecord = await agent.uploadBlob(imgBuffer, {
+                            encoding: mimeType
+                        });
 
-                    card.thumb = {
-                        $type: "blob",
-                        ref: blobRecord.data.blob.ref,
-                        mimeType: blobRecord.data.blob.mimeType,
-                        size: blobRecord.data.blob.size
-                    };
+                        card.thumb = {
+                            $type: "blob",
+                            ref: blobRecord.data.blob.ref,
+                            mimeType: blobRecord.data.blob.mimeType,
+                            size: blobRecord.data.blob.size
+                        };
+                    }
                 }
             }
         }
@@ -293,16 +295,18 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                         mimeType = 'image/jpeg';
                     }
 
-                    const blobRecord = await agent.uploadBlob(imgBuffer, {
-                        encoding: mimeType
-                    });
+                    if ( mimeType.startsWith('image/') ) {
+                        const blobRecord = await agent.uploadBlob(imgBuffer, {
+                            encoding: mimeType
+                        });
 
-                    card.thumb = {
-                        $type: "blob",
-                        ref: blobRecord.data.blob.ref,
-                        mimeType: blobRecord.data.blob.mimeType,
-                        size: blobRecord.data.blob.size
-                    };
+                        card.thumb = {
+                            $type: "blob",
+                            ref: blobRecord.data.blob.ref,
+                            mimeType: blobRecord.data.blob.mimeType,
+                            size: blobRecord.data.blob.size
+                        };
+                    }
                 }
             }
         }
@@ -329,8 +333,6 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
         external: card,
     };
 }
-
-
 
 async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
     let quality = 90; // Start at 90% quality
