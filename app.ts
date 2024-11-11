@@ -285,7 +285,7 @@ async function main() {
                             }
     
                             if (localMediaFileNotFound) {
-                                console.warn(`Local media file not found into archive, tweet discarded. Local path: ${mediaFilename}`);
+                                console.warn(`Local media file not found into archive. Local path: ${mediaFilename}`);
                                 continue
                             }
                             
@@ -326,7 +326,7 @@ async function main() {
                             }
     
                             if (localVideoFileNotFound) {
-                                console.warn(`Local video file not found into archive, tweet discarded. Local path: ${videoFilePath}`);
+                                console.warn(`Local video file not found into archive. Local path: ${videoFilePath}`);
                                 continue
                             }
     
