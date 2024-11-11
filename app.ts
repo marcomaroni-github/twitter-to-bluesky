@@ -228,9 +228,9 @@ async function main() {
                     console.log("Discarded (reply)");
                     continue;
                 }
-                
+
                 if (tweet.in_reply_to_screen_name && PAST_HANDLES.findIndex(handle=>handle===tweet.in_reply_to_screen_name)<0) {
-                    console.log("Discarded (reply to other user)");
+                    console.log("Discarded (reply to another user)");
                     continue;
                 }
 
