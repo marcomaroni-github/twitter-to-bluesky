@@ -8,7 +8,9 @@ import URI from 'urijs';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
-import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
+import {
+    getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs, PAST_HANDLES
+} from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
 
 dotenv.config();
@@ -22,8 +24,6 @@ const SIMULATE = process.env.SIMULATE === "1";
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
-
-const PAST_HANDLES = process.env.PAST_HANDLES!.split(",");
 
 const DISABLE_IMPORT_REPLY = process.env.DISABLE_IMPORT_REPLY === "1";
 
