@@ -3,8 +3,9 @@ import { http, https } from 'follow-redirects';
 import FS from 'fs';
 import he from 'he';
 import path from 'path';
-import process from 'process';
+import process, { title } from 'process';
 import URI from 'urijs';
+import sharp from 'sharp';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
@@ -12,6 +13,13 @@ import {
     getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs, PAST_HANDLES
 } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
+let fetch: any;
+(async () => {
+    fetch = (await import('node-fetch')).default;
+})();
+import { load } from 'cheerio'
+const oembetter = require('oembetter')();
+oembetter.endpoints(oembetter.suggestedEndpoints);
 
 dotenv.config();
 
@@ -20,12 +28,10 @@ const agent = new AtpAgent({
 })
 
 const SIMULATE = process.env.SIMULATE === "1";
-
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
-
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
-
 const DISABLE_IMPORT_REPLY = process.env.DISABLE_IMPORT_REPLY === "1";
+const MAX_FILE_SIZE = 1 * 1000 * 1000; // 1MiB
 
 
 let MIN_DATE: Date | undefined = undefined;
@@ -94,7 +100,15 @@ async function cleanTweetText(
         const newUrls: string[] = [];
         for (let index = 0; index < urls.length; index++) {
             // use tweet.entities.urls mapping instead, so we can make sure the result is the same as the origin. 
-            const newUrl = urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? await resolveShorURL(urls[index]);
+            const newUrl = await Promise.race([
+                new Promise<string>((resolve, reject) => {
+                    setTimeout(() => reject(new Error('Timeout')), 5000);
+                }),
+                urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? resolveShorURL(urls[index])
+            ]).catch(err => {
+                console.warn(`Error resolving URL: ${urls[index]}  ${err.message}`);
+                return urls[index];
+            });
 
             if (   checkPastHandles(newUrl) 
                 && newUrl.indexOf("/photo/") == -1 
@@ -180,6 +194,175 @@ function saveCache(sortedTweets) {
     FS.writeFileSync(TWEETS_MAPPING_FILE_NAME, JSON.stringify(sortedTweets, null, 4));
 }
 
+async function fetchEmbedUrlCard(url: string): Promise<any> {
+    let card = {
+        uri: url,
+        title: "",
+        description: "",
+        thumb: { $type: "none", ref: "", mimeType: "", size: 0 },
+    };
+
+    try {
+        let oembedResult:any = null;
+        try
+        {
+            oembedResult = await new Promise((resolve, reject) => {
+                oembetter.fetch(url, 
+                    { headers: { 'User-Agent': USER_AGENT } },
+                    (err, response) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+            });
+        } catch (error: any) {
+            console.debug(`Error fetching oembed: ${error.message}`);
+        }
+
+        if (oembedResult) {
+            card.title = oembedResult.title || card.title;
+            card.description = oembedResult.description || card.description;
+            if (oembedResult.thumbnail_url) {
+                const imgResp = await fetch(oembedResult.thumbnail_url);
+                if (imgResp.ok) {
+                    let imgBuffer = await imgResp.arrayBuffer();
+                    let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+
+                    if (imgBuffer.byteLength > MAX_FILE_SIZE) {
+                        imgBuffer = await recompressImageIfNeeded(imgBuffer);
+                    }
+
+                    if ( mimeType.startsWith('image/') ) {
+                        const blobRecord = await agent.uploadBlob(imgBuffer, {
+                            encoding: mimeType
+                        });
+
+                        card.thumb = {
+                            $type: "blob",
+                            ref: blobRecord.data.blob.ref,
+                            mimeType: blobRecord.data.blob.mimeType,
+                            size: blobRecord.data.blob.size
+                        };
+                    }
+                }
+            }
+        }
+        
+        if (card.title.length == 0 && card.description.length == 0 && card.thumb.size == 0)
+        {
+            const resp = await fetch(url, {
+                headers: {
+                'User-Agent': USER_AGENT,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                },
+                redirect: 'follow'
+            });
+            if (!resp.ok) {
+                if ( resp.status == 401 && url.startsWith('http:') ) {
+                    console.warn(`HTTP error: ${resp.status} ${resp.statusText} (try with https)`);
+                    return await fetchEmbedUrlCard(url.replace('http:', 'https:'));
+                }
+                throw new Error(`HTTP error: ${resp.status} ${resp.statusText}`);
+            }
+            const html = await resp.text();
+            const $ = load(html);
+
+            const titleTag = $('meta[property="og:title"]').attr('content');
+            if (titleTag) {
+                card.title = he.decode(titleTag);
+            }
+
+            const descriptionTag = $('meta[property="og:description"]').attr('content');
+            if (descriptionTag) {
+                card.description = he.decode(descriptionTag);
+            }
+
+            const imageTag = $('meta[property="og:image"]').attr('content');
+            if (imageTag) {
+                let imgUrl = imageTag;
+                if (!imgUrl.includes('://')) {
+                    imgUrl = new URL(imgUrl, url).href;
+                }
+
+                const imgResp = await fetch(imgUrl);
+                if (imgResp.ok) {
+                    let imgBuffer = await imgResp.arrayBuffer();
+                    let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+
+                    if (imgBuffer.byteLength > MAX_FILE_SIZE) {
+                        imgBuffer = await recompressImageIfNeeded(imgBuffer);
+                        mimeType = 'image/jpeg';
+                    }
+
+                    if ( mimeType.startsWith('image/') ) {
+                        const blobRecord = await agent.uploadBlob(imgBuffer, {
+                            encoding: mimeType
+                        });
+
+                        card.thumb = {
+                            $type: "blob",
+                            ref: blobRecord.data.blob.ref,
+                            mimeType: blobRecord.data.blob.mimeType,
+                            size: blobRecord.data.blob.size
+                        };
+                    }
+                }
+            }
+        }
+    } catch (error: any) {
+        console.warn(`Error fetching embed URL card: ${error.message}`);
+        return null;
+    }
+
+    if (card.thumb.size == 0 && (card.title.length > 0 || card.description.length > 0)) {
+        return {
+            $type: "app.bsky.embed.external",
+            external: {
+                uri: url,
+                title: card.title,
+                description: card.description,
+            }
+        };
+    } else if ((card.title.length == 0 && card.description.length == 0)) {
+        return null;
+    }
+
+    return {
+        $type: "app.bsky.embed.external",
+        external: card,
+    };
+}
+
+async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
+    let quality = 90; // Start at 90% quality
+    let image = sharp(imageData);
+    const metadata = await image.metadata();
+
+    // Convert non-JPEG images to JPEG format initially
+    if (metadata.format !== 'jpeg') {
+        image = image.toFormat('jpeg');
+    }
+
+    let options : sharp.JpegOptions = { quality: quality };
+    let buffer = await image.jpeg(options).toBuffer();
+
+    // Recompression loop if the buffer size is still above 1MB
+    while (buffer.length > MAX_FILE_SIZE && quality > 10) {
+        quality -= 10; // Step down quality by 10%
+        options = { quality: quality };
+        buffer = await sharp(imageData).jpeg(options).toBuffer();
+    }
+
+    if (buffer.length > MAX_FILE_SIZE) {
+        console.warn(`Could not reduce image size below 1MB for file: ${imageData}`);
+    }
+
+    return buffer;
+}
+
 async function main() {
     console.log(`Import started at ${new Date().toISOString()}`)
     console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
@@ -255,6 +438,11 @@ async function main() {
                         const media = tweet.extended_entities.media[index];
 
                         if (media?.type === "photo") {
+
+                            if (tweet.full_text.includes(media?.url)) {
+                                tweet.full_text = tweet.full_text.replace(media?.url, '').replace(/\s\s+/g, ' ').trim();
+                            }
+
                             const i = media?.media_url.lastIndexOf("/");
                             const it = media?.media_url.lastIndexOf(".");
                             const fileType = media?.media_url.substring(it + 1)
@@ -269,7 +457,7 @@ async function main() {
                                     break;
                                 default:
                                     console.error("Unsupported photo file type" + fileType);
-                                    break;
+                                    continue;
                             }
                             if (mimeType.length <= 0)
                                 continue;
@@ -300,8 +488,14 @@ async function main() {
                                 console.warn(`Local media file not found into archive. Local path: ${mediaFilename}`);
                                 continue
                             }
-                            
-                            const imageBuffer = FS.readFileSync(mediaFilename);
+                        
+                            let imageBuffer = FS.readFileSync(mediaFilename);
+
+                            // Check if the image size exceeds 1MB or if it’s a non-JPEG format
+                            if (mimeType === 'image/png' || mimeType === 'image/webp' || mimeType === 'image/jpeg' && imageBuffer.length > MAX_FILE_SIZE) {
+                                imageBuffer = await recompressImageIfNeeded(mediaFilename);
+                                mimeType = 'image/jpeg';
+                            }
 
                             if (!SIMULATE) {
                                 const blobRecord = await agent.uploadBlob(imageBuffer, {
@@ -316,11 +510,16 @@ async function main() {
                                         mimeType: blobRecord.data.blob.mimeType,
                                         size: blobRecord.data.blob.size
                                     }
-                                })
+                                });
                             }
                         }
 
                         if (media?.type === "video") {
+
+                            if (tweet.full_text.includes(media?.url)) {
+                                tweet.full_text = tweet.full_text.replace(media?.url, '').replace(/\s\s+/g, ' ').trim();
+                            }
+
                             const baseVideoPath = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-`;
                             let videoFileName = '';
                             let videoFilePath = '';
@@ -425,6 +624,20 @@ async function main() {
                     if (tweet.full_text != postText)
                         console.log(` Clean text '${postText}'`);
                 }
+               
+                let externalEmbed = null;
+                if (tweet.entities?.urls) {
+                    for (const urlEntity of tweet.entities.urls) {
+                        if (!urlEntity.expanded_url.startsWith('https://twitter.com') && !urlEntity.expanded_url.startsWith('https://x.com')) {
+                            try {
+                                externalEmbed = await fetchEmbedUrlCard(urlEntity.expanded_url);
+                            }
+                            catch (error: any) {
+                                console.warn(`Error fetching embed URL card: ${error.message}`);
+                            }
+                        }
+                    }
+                }
 
                 const rt = new RichText({
                     text: postText
@@ -436,10 +649,14 @@ async function main() {
                     facets: rt.facets,
                     createdAt: tweet_createdAt,
                 }
+
                 const embed = getMergeEmbed(embeddedImage, embeddedVideo, embeddedRecord);
                 if(embed && Object.keys(embed).length > 0){
                     Object.assign(postRecord, { embed });
+                } else if (externalEmbed) {
+                    Object.assign(postRecord, { embed: externalEmbed });
                 }
+
                 if(replyTo && Object.keys(replyTo).length > 0){
                     Object.assign(postRecord, { reply: replyTo });
                 }
