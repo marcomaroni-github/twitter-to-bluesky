@@ -29,7 +29,7 @@ const SIMULATE = process.env.SIMULATE === "1";
 const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
 const DISABLE_IMPORT_REPLY = process.env.DISABLE_IMPORT_REPLY === "1";
-const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
+const MAX_FILE_SIZE = 1 * 1000 * 1000; // 1MiB
 
 
 let MIN_DATE: Date | undefined = undefined;
@@ -225,10 +225,15 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
             if (oembedResult.thumbnail_url) {
                 const imgResp = await fetch(oembedResult.thumbnail_url);
                 if (imgResp.ok) {
-                    const imgBuffer = await imgResp.arrayBuffer();
+                    let imgBuffer = await imgResp.arrayBuffer();
+                    let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+
+                    if (imgBuffer.byteLength > MAX_FILE_SIZE) {
+                        imgBuffer = await recompressImageIfNeeded(imgBuffer);
+                    }
 
                     const blobRecord = await agent.uploadBlob(imgBuffer, {
-                        encoding: imgResp.headers.get('content-type') || 'image/jpeg'
+                        encoding: mimeType
                     });
 
                     card.thumb = {
@@ -280,10 +285,16 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
 
                 const imgResp = await fetch(imgUrl);
                 if (imgResp.ok) {
-                    const imgBuffer = await imgResp.arrayBuffer();
+                    let imgBuffer = await imgResp.arrayBuffer();
+                    let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+
+                    if (imgBuffer.byteLength > MAX_FILE_SIZE) {
+                        imgBuffer = await recompressImageIfNeeded(imgBuffer);
+                        mimeType = 'image/jpeg';
+                    }
 
                     const blobRecord = await agent.uploadBlob(imgBuffer, {
-                        encoding: imgResp.headers.get('content-type') || 'image/jpeg'
+                        encoding: mimeType
                     });
 
                     card.thumb = {
@@ -321,9 +332,9 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
 
 
 
-async function recompressImageIfNeeded(filePath: string): Promise<Buffer> {
+async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
     let quality = 70; // Start at 70% quality
-    let image = sharp(filePath);
+    let image = sharp(imageData);
     const metadata = await image.metadata();
 
     // Convert non-JPEG images to JPEG format initially
@@ -338,11 +349,11 @@ async function recompressImageIfNeeded(filePath: string): Promise<Buffer> {
     while (buffer.length > MAX_FILE_SIZE && quality > 10) {
         quality -= 10; // Step down quality by 10%
         options = { quality: quality };
-        buffer = await sharp(filePath).jpeg(options).toBuffer();
+        buffer = await sharp(imageData).jpeg(options).toBuffer();
     }
 
     if (buffer.length > MAX_FILE_SIZE) {
-        console.warn(`Could not reduce image size below 1MB for file: ${filePath}`);
+        console.warn(`Could not reduce image size below 1MB for file: ${imageData}`);
     }
 
     return buffer;
