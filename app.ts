@@ -333,7 +333,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
 
 
 async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
-    let quality = 70; // Start at 70% quality
+    let quality = 90; // Start at 90% quality
     let image = sharp(imageData);
     const metadata = await image.metadata();
 
