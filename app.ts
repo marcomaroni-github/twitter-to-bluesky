@@ -647,6 +647,20 @@ async function main() {
                     text: postText
                 });
                 await rt.detectFacets(agent);
+                // Remove mentions without a did
+                if (rt.facets) {
+                    rt.facets = rt.facets.filter(facet => {
+                        if (facet.features) {
+                            facet.features = facet.features.filter(feature => {
+                                if (feature.$type === 'app.bsky.richtext.facet#mention' && !feature.did) {
+                                    return false;
+                                }
+                                return true;
+                            });
+                        }
+                        return facet.features.length > 0;
+                    });
+                }
                 const postRecord = {
                     $type: 'app.bsky.feed.post',
                     text: rt.text,
