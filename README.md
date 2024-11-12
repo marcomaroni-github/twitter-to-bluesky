@@ -103,7 +103,7 @@ Create an .env file in the project folder where you set the following variables 
 - `BLUESKY_USERNAME` = username into which you want to import the tweets (e.g. "test.bsky.social")
 - `BLUESKY_PASSWORD` = account password created via App Password (eg. "pwd123")
 - `ARCHIVE_FOLDER` = full path to the folder containing the X/Twitter archive (e.g. "C:/Temp/twitter-archive")
-- `PAST_HANDLES` - one or more x/twitter handles without @, comma separated (e.g. 'marcomaroni,user'). Corresponds to the `--twitter-handles` argument.
+- `TWITER_HANDLES` - one or more x/twitter handles without @, comma separated (e.g. 'marcomaroni,user'). Corresponds to the `--twitter-handles` argument.
 
 Additionally you can set these environment variables to customize behavior:
 
@@ -111,6 +111,7 @@ Additionally you can set these environment variables to customize behavior:
 - `MIN_DATE` = indicates the minimum date of tweets to import, ISO format (e.g. '2011-01-01' or '2011-02-09T10:30:49.000Z').
 - `MAX_DATE` = indicates the maximum date of tweets to import, ISO format (e.g. '2012-01-01' or '2014-04-09T12:36:49.328Z').
 - `DISABLE_IMPORT_REPLY` = if set to 1 disables the import of replies to your tweets (threads).
+- `API_DELAY` = Delay between Bluesky API calls in milliseconds
 
 Example of a `.env` file:
 
