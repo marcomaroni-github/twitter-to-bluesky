@@ -752,7 +752,7 @@ async function main() {
                 }
                
                 let externalEmbed = null;
-                if (tweet.entities?.urls) {
+                if (tweet.entities?.urls && !argv.simulate) {
                     for (const urlEntity of tweet.entities.urls) {
                         if (!urlEntity.expanded_url.startsWith('https://twitter.com') && !urlEntity.expanded_url.startsWith('https://x.com')) {
                             try {
