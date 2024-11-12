@@ -542,59 +542,66 @@ async function main() {
                             }
     
                             if (!SIMULATE) {
-                                const { data: serviceAuth } = await agent.com.atproto.server.getServiceAuth(
-                                    {
-                                      aud: `did:web:${agent.dispatchUrl.host}`,
-                                      lxm: "com.atproto.repo.uploadBlob",
-                                      exp: Date.now() / 1000 + 60 * 30, // 30 minutes
-                                    },
-                                  );
-        
-                                const token = serviceAuth.token;
-        
-                                const videoBuffer = FS.readFileSync(videoFilePath);
-                                
-                                const uploadUrl = new URL(
-                                    "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo",
-                                  );
-                                uploadUrl.searchParams.append("did", agent.session!.did);
-                                uploadUrl.searchParams.append("name", videoFilePath.split("/").pop()!+"1");
-        
-                                console.log(" Upload video");
-    
-                                const uploadResponse = await fetch(uploadUrl, {
-                                    method: "POST",
-                                    headers: {
-                                        Authorization: `Bearer ${token}`,
-                                        "Content-Type": "video/mp4",
-                                        "Content-Length": String(videoBuffer.length),
-                                    },
-                                    body: videoBuffer,
-                                });
-                                
-                                const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
-                                if (jobStatus.error) {
-                                    console.warn(` Video job status: '${jobStatus.error}'. Video will be posted as a link`);
-                                }
-                                console.log(" JobId:", jobStatus.jobId);
-        
-                                let blob: BlobRef | undefined = jobStatus.blob;
-        
-                                const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
-                                
+                                let blob: BlobRef | undefined = undefined;
                                 while (!blob) {
-                                  const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
-                                    { jobId: jobStatus.jobId },
-                                  );
-                                  console.log("  Status:",
-                                    status.jobStatus.state,
-                                    status.jobStatus.progress || "",
-                                  );
-                                  if (status.jobStatus.blob) {
-                                    blob = status.jobStatus.blob;
-                                  }
-                                  // wait a second
-                                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                                    const { data: serviceAuth } = await agent.com.atproto.server.getServiceAuth(
+                                        {
+                                        aud: `did:web:${agent.dispatchUrl.host}`,
+                                        lxm: "com.atproto.repo.uploadBlob",
+                                        exp: Date.now() / 1000 + 60 * 30, // 30 minutes
+                                        },
+                                    );
+            
+                                    const token = serviceAuth.token;
+            
+                                    const videoBuffer = FS.readFileSync(videoFilePath);
+                                    
+                                    const uploadUrl = new URL(
+                                        "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo",
+                                    );
+                                    uploadUrl.searchParams.append("did", agent.session!.did);
+                                    uploadUrl.searchParams.append("name", videoFilePath.split("/").pop()!+"1");
+            
+                                    console.log(" Upload video");
+        
+                                    const uploadResponse = await fetch(uploadUrl, {
+                                        method: "POST",
+                                        headers: {
+                                            Authorization: `Bearer ${token}`,
+                                            "Content-Type": "video/mp4",
+                                            "Content-Length": String(videoBuffer.length),
+                                        },
+                                        body: videoBuffer,
+                                    });
+                                    
+                                    const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
+                                    if (jobStatus.error) {
+                                        console.warn(` Video job status: '${jobStatus.error}'. Video will be posted as a link`);
+                                    }
+                                    console.log(" JobId:", jobStatus.jobId);
+            
+                                    blob = jobStatus.blob;
+            
+                                    const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
+                                    
+                                    while (!blob) {
+                                    const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
+                                        { jobId: jobStatus.jobId },
+                                    );
+                                    console.log("  Status:",
+                                        status.jobStatus.state,
+                                        status.jobStatus.progress || "",
+                                    );
+                                    if (status.jobStatus.blob) {
+                                        blob = status.jobStatus.blob;
+                                    }
+                                    if (status.jobStatus.state === "JOB_STATE_FAILED") {
+                                        console.log("  Status: Video upload failed, retrying");
+                                        break;
+                                    }
+                                    // wait a second
+                                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                                    }
                                 }
     
                                 embeddedVideo = blob;
