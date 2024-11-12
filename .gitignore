@@ -18,3 +18,4 @@ libs/bskyAPI.js
 
 # mapping files
 tweets_mapping.json
+**/*.js.map

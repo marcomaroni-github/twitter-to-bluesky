@@ -45,6 +45,72 @@ if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
 let alreadySavedCache = false;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
 
+class RateLimitedAgent {
+    private agent: AtpAgent;
+    private waitingForRateLimit: boolean = false;
+
+    constructor(agent: AtpAgent) {
+        this.agent = agent;
+    }
+
+    private async handleRateLimit(error: any): Promise<void> {
+        if (error.status === 429) {
+            this.waitingForRateLimit = true;
+            const resetTime = new Date(Number(error.headers['ratelimit-reset']) * 1000);
+            const waitTime = resetTime.getTime() - Date.now();
+            console.log(`Rate limit exceeded. Waiting until ${resetTime.toLocaleString()} (${Math.ceil(waitTime / 1000)} seconds)`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            this.waitingForRateLimit = false;
+        } else {
+            throw error;
+        }
+    }
+
+    async call<T>(method: () => Promise<T>): Promise<T> {
+        while (true) {
+            try {
+                if (this.waitingForRateLimit) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    continue;
+                }
+                return await method();
+            } catch (error: any) {
+                if (error.status === 429) {
+                    await this.handleRateLimit(error);
+                } else {
+                    throw error;
+                }
+            }
+        }
+    }
+
+    async uploadBlob(...args: Parameters<typeof AtpAgent.prototype.uploadBlob>) {
+        return this.call(() => this.agent.uploadBlob(...args));
+    }
+
+    async post(...args: Parameters<typeof AtpAgent.prototype.post>) {
+        return this.call(() => this.agent.post(...args));
+    }
+
+    async login(...args: Parameters<typeof AtpAgent.prototype.login>) {
+        return this.call(() => this.agent.login(...args));
+    }
+
+    async getServiceAuth(...args: Parameters<typeof AtpAgent.prototype.com.atproto.server.getServiceAuth>) {
+        return this.call(() => this.agent.com.atproto.server.getServiceAuth(...args));
+    }
+
+    get session() {
+        return this.agent.session;
+    }
+
+    get dispatchUrl() {
+        return this.agent.dispatchUrl;
+    }
+}
+
+const rateLimitedAgent = new RateLimitedAgent(agent);
+
 async function resolveShorURL(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
         try{
@@ -239,7 +305,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                     }
 
                     if ( mimeType.startsWith('image/') ) {
-                        const blobRecord = await agent.uploadBlob(imgBuffer, {
+                        const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
                         });
 
@@ -302,7 +368,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                     }
 
                     if ( mimeType.startsWith('image/') ) {
-                        const blobRecord = await agent.uploadBlob(imgBuffer, {
+                        const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
                         });
 
@@ -382,7 +448,7 @@ async function main() {
             return ad - bd;
         });
 
-        await agent.login({ identifier: process.env.BLUESKY_USERNAME!, password: process.env.BLUESKY_PASSWORD! });
+        await rateLimitedAgent.login({ identifier: process.env.BLUESKY_USERNAME!, password: process.env.BLUESKY_PASSWORD! });
        
         process.on('exit', () => saveCache(sortedTweets));
         process.on('SIGINT', () => process.exit());
@@ -502,7 +568,7 @@ async function main() {
                             }
 
                             if (!SIMULATE) {
-                                const blobRecord = await agent.uploadBlob(imageBuffer, {
+                                const blobRecord = await rateLimitedAgent.uploadBlob(imageBuffer, {
                                     encoding: mimeType
                                 });
 
@@ -546,9 +612,9 @@ async function main() {
                             }
     
                             if (!SIMULATE) {
-                                const { data: serviceAuth } = await agent.com.atproto.server.getServiceAuth(
+                                const { data: serviceAuth } = await rateLimitedAgent.getServiceAuth(
                                     {
-                                      aud: `did:web:${agent.dispatchUrl.host}`,
+                                      aud: `did:web:${rateLimitedAgent.dispatchUrl.host}`,
                                       lxm: "com.atproto.repo.uploadBlob",
                                       exp: Date.now() / 1000 + 60 * 30, // 30 minutes
                                     },
@@ -561,7 +627,7 @@ async function main() {
                                 const uploadUrl = new URL(
                                     "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo",
                                   );
-                                uploadUrl.searchParams.append("did", agent.session!.did);
+                                uploadUrl.searchParams.append("did", rateLimitedAgent.session!.did);
                                 uploadUrl.searchParams.append("name", videoFilePath.split("/").pop()!+"1");
         
                                 console.log(" Upload video");
@@ -671,22 +737,29 @@ async function main() {
                     //I wait 3 seconds so as not to exceed the api rate limits
                     await new Promise(resolve => setTimeout(resolve, API_DELAY));
 
-                    const recordData = await agent.post(postRecord);
-                    const i = recordData.uri.lastIndexOf("/");
-                    if (i > 0) {
-                        const postUri = getBskyPostUrl(recordData.uri);
-                        console.log("Bluesky post create, URL: " + postUri);
+                    try 
+                    {
+                        const recordData = await rateLimitedAgent.post(postRecord);
+                        const i = recordData.uri.lastIndexOf("/");
+                        if (i > 0) {
+                            const postUri = getBskyPostUrl(recordData.uri);
+                            console.log("Bluesky post create, URL: " + postUri);
 
-                        importedTweet++;
-                    } else {
-                        console.warn(recordData);
+                            importedTweet++;
+                        } else {
+                            console.warn(recordData);
+                        }
+
+                        // store bsky data into sortedTweets (then write into the mapping file)
+                        currentData.bsky = {
+                            uri: recordData.uri,
+                            cid: recordData.cid,
+                        };
                     }
-
-                    // store bsky data into sortedTweets (then write into the mapping file)
-                    currentData.bsky = {
-                        uri: recordData.uri,
-                        cid: recordData.cid,
-                    };
+                    catch (error: any) {
+                        console.warn(`Error posting tweet: ${postRecord} ${error.message}`);
+                    }
+                    
                 } else {
                     importedTweet++;
                 }
