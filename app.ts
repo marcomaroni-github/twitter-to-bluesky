@@ -585,22 +585,22 @@ async function main() {
                                     const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
                                     
                                     while (!blob) {
-                                    const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
-                                        { jobId: jobStatus.jobId },
-                                    );
-                                    console.log("  Status:",
-                                        status.jobStatus.state,
-                                        status.jobStatus.progress || "",
-                                    );
-                                    if (status.jobStatus.blob) {
-                                        blob = status.jobStatus.blob;
-                                    }
-                                    if (status.jobStatus.state === "JOB_STATE_FAILED") {
-                                        console.log("  Status: Video upload failed, retrying");
-                                        break;
-                                    }
-                                    // wait a second
-                                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                                        const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
+                                            { jobId: jobStatus.jobId },
+                                        );
+                                        console.log("  Status:",
+                                            status.jobStatus.state,
+                                            status.jobStatus.progress || "",
+                                        );
+                                        if (status.jobStatus.blob) {
+                                            blob = status.jobStatus.blob;
+                                        }
+                                        if (status.jobStatus.state === "JOB_STATE_FAILED") {
+                                            console.log("  Status: Video upload failed, retrying");
+                                            break;
+                                        }
+                                        // wait a second
+                                        await new Promise((resolve) => setTimeout(resolve, 1000));
                                     }
                                 }
     
