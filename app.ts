@@ -298,7 +298,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                         imgBuffer = await recompressImageIfNeeded(imgBuffer);
                     }
 
-                    if ( mimeType.startsWith('image/') ) {
+                    if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg') ) {
                         const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
                         });
@@ -361,7 +361,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                         mimeType = 'image/jpeg';
                     }
 
-                    if ( mimeType.startsWith('image/') ) {
+                    if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg')) {
                         const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
                         });
