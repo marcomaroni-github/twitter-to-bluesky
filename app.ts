@@ -473,7 +473,7 @@ async function main() {
         .option('twitter-handles', {
             type: 'array',
             description: 'Twitter handles to import',
-            default: process.env.TWITER_HANDLES?.split(','),
+            default: process.env.TWITTER_HANDLES?.split(','),
             demandOption: true,
         })
         .help()

@@ -103,7 +103,7 @@ Create an .env file in the project folder where you set the following variables 
 - `BLUESKY_USERNAME` = username into which you want to import the tweets (e.g. "test.bsky.social")
 - `BLUESKY_PASSWORD` = account password created via App Password (eg. "pwd123")
 - `ARCHIVE_FOLDER` = full path to the folder containing the X/Twitter archive (e.g. "C:/Temp/twitter-archive")
-- `TWITER_HANDLES` - one or more x/twitter handles without @, comma separated (e.g. 'marcomaroni,user'). Corresponds to the `--twitter-handles` argument.
+- `TWITTER_HANDLES` - one or more x/twitter handles without @, comma separated (e.g. 'marcomaroni,user'). Corresponds to the `--twitter-handles` argument.
 
 Additionally you can set these environment variables to customize behavior:
 
@@ -119,7 +119,7 @@ Example of a `.env` file:
 BLUESKY_USERNAME=test.bsky.social
 BLUESKY_PASSWORD=pwd123
 ARCHIVE_FOLDER=C:/Temp/twitter-archive
-PAST_HANDLES=marcomaroni,user
+TWITTER_HANDLES=marcomaroni,user
 ```
 
 Then you can run the script with `npm start` or `npm run start_log` to write an import.log file.
