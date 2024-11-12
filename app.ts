@@ -51,7 +51,9 @@ async function resolveShorURL(url: string): Promise<string> {
             if (url.startsWith('https://')) {
                 https.get(url, {
                     headers: {
-                        'User-Agent': USER_AGENT
+                        'User-Agent': USER_AGENT,
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'Connection': 'keep-alive'
                     }
                 }, response => {
                     resolve(response.responseUrl);
@@ -62,7 +64,9 @@ async function resolveShorURL(url: string): Promise<string> {
             } else if (url.startsWith('http://')) {
                 http.get(url, {
                     headers: {
-                        'User-Agent': USER_AGENT
+                        'User-Agent': USER_AGENT,
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'Connection': 'keep-alive'
                     }
                 }, response => {
                     resolve(response.responseUrl);
