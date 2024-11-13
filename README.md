@@ -42,12 +42,12 @@ Mind that the program may have to run for a long time, potentially for several d
 
 If you have interrupted the program, you can restart it, and it will continue from where it left off. That information is stored in the "tweets_mapping.json" file in the project folder. Don't delete that file unless you want to start the import from scratch or import a different archive.
 
-### Using command line arguments
+**We highly recommend trying to simulate the import first and import a small range of tweets, using the additional parameters documented below.**
 
+### Using command line arguments
 To start the program, use: `npm run start -- -- [args]` where `[args]` are the arguments you want to pass to the program that are documented below. The double double-dashes may look a bit odd, but they are necessary to pass arguments to the program. (Not our choice, sorry!)
 
 #### Required Arguments
-
 You need to gather your Twitter archive and create a Bluesky account before running the program.
 
 You must provide these arguments for the program to work:
@@ -99,7 +99,6 @@ npm run start -- -- --archive-folder ~/twitter-archive --bluesky-username test.b
 ```
 
 ## Using environment variables
-
 You can also set the required parameters using environment variables or a `.env` file.
 
 Create an .env file in the project folder where you set the following variables or set those in your environment:
@@ -128,10 +127,7 @@ TWITTER_HANDLES=marcomaroni,user
 
 Then you can run the script with `npm start` or `npm run start_log` to write an import.log file.
 
-**We highly recommend trying to simulate the import first and import a small range of tweets, using the additional parameters documented below.**
-
 ## License
-
 "Twitter To Bluesky" is published under the MIT license.
 
 Copyright 2024 Marco Maroni
