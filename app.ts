@@ -14,6 +14,7 @@ import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
+import { time } from 'console';
 
 let fetch: any;
 (async () => {
@@ -171,9 +172,7 @@ async function cleanTweetText(
         for (let index = 0; index < urls.length; index++) {
             // use tweet.entities.urls mapping instead, so we can make sure the result is the same as the origin. 
             const newUrl = await Promise.race([
-                new Promise<string>((resolve, reject) => {
-                    setTimeout(() => reject(new Error('Timeout')), 5000);
-                }),
+                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
                 urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? resolveShorURL(urls[index])
             ]).catch(err => {
                 console.warn(`Error resolving URL: ${urls[index]}  ${err.message}`);
@@ -276,17 +275,27 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
         let oembedResult:any = null;
         try
         {
-            oembedResult = await new Promise((resolve, reject) => {
-                oembetter.fetch(url, 
-                    { headers: { 'User-Agent': USER_AGENT } },
-                    (err, response) => {
-                        if (err) {
-                            reject(err);
-                        } else {
-                            resolve(response);
-                        }
-                    });
-            });
+            oembedResult = await Promise.race([
+                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
+                new Promise((resolve, reject) => {
+                    oembetter.fetch(url,
+                        {
+                            headers: {
+                                'User-Agent': USER_AGENT,
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/jpeg,image/webp,image/apng,*/*;q=0.8',
+                                'Accept-Language': 'en-US,en;q=0.9',
+                                'Accept-Encoding': 'gzip, deflate',
+                                'Connection': 'keep-alive'
+                        }, timeout: 5000 },
+                        (err, response) => {
+                            if (err) {
+                                reject(err);
+                            } else {
+                                resolve(response);
+                            }
+                        })
+                    })
+            ]);
         } catch (error: any) {
             console.debug(`Error fetching oembed: ${error.message}`);
         }
@@ -295,7 +304,17 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
             card.title = oembedResult.title || card.title;
             card.description = oembedResult.description || card.description;
             if (oembedResult.thumbnail_url) {
-                const imgResp = await fetch(oembedResult.thumbnail_url);
+                const imgResp = await Promise.race(
+                    [new Promise<string>((resolve, reject) => {setTimeout(() => reject(new Error('Timeout')), 5000)}),                    
+                    fetch(oembedResult.thumbnail_url,
+                    {
+                        headers: {
+                            'User-Agent': USER_AGENT,
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/jpeg,image/webp,image/apng,*/*;q=0.8',
+                            'Accept-Language': 'en-US,en;q=0.9',
+                            'Accept-Encoding': 'gzip, deflate',
+                            'Connection': 'keep-alive'
+                        }, timeout: 5000})]);
                 if (imgResp.ok) {
                     let imgBuffer = await imgResp.arrayBuffer();
                     let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
@@ -322,14 +341,19 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
         
         if (card.title.length == 0 && card.description.length == 0 && card.thumb.size == 0)
         {
-            const resp = await fetch(url, {
-                headers: {
-                'User-Agent': USER_AGENT,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                },
-                redirect: 'follow'
-            });
+            const resp = await Promise.race([
+                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
+                fetch(url, {
+                    headers: {
+                        'User-Agent': USER_AGENT,
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/jpeg,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Connection': 'keep-alive'
+                    },
+                    redirect: 'follow',
+                    timeout: 5000
+                })]);
             if (!resp.ok) {
                 if ( resp.status == 401 && url.startsWith('http:') ) {
                     console.warn(`HTTP error: ${resp.status} ${resp.statusText} (try with https)`);
@@ -357,7 +381,17 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                     imgUrl = new URL(imgUrl, url).href;
                 }
 
-                const imgResp = await fetch(imgUrl);
+                const imgResp = await Promise.race([
+                    new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
+                    fetch(imgUrl,
+                        {
+                            headers: {
+                                'User-Agent': USER_AGENT,
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/jpeg,image/webp,image/apng,*/*;q=0.8',
+                                'Accept-Language': 'en-US,en;q=0.9',
+                                'Accept-Encoding': 'gzip, deflate',
+                                'Connection': 'keep-alive'
+                        }, timeout: 5000})]);
                 if (imgResp.ok) {
                     let imgBuffer = await imgResp.arrayBuffer();
                     let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
