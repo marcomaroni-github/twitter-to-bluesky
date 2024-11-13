@@ -1,13 +1,8 @@
-import * as dotenv from 'dotenv';
-import * as process from 'process';
-
 import { checkPastHandles } from './urlHandler';
 
-dotenv.config();
-
-export const PAST_HANDLES = process.env.PAST_HANDLES!.split(",");
-
-export function getReplyRefs({in_reply_to_screen_name, in_reply_to_status_id}, tweets):{
+export function getReplyRefs(
+    twitterHandles: string[],
+    {in_reply_to_screen_name, in_reply_to_status_id}, tweets):{
     "root": {
         "uri": string;
         "cid": string;
@@ -17,7 +12,7 @@ export function getReplyRefs({in_reply_to_screen_name, in_reply_to_status_id}, t
         "cid":string;
     },
 }|null{
-    const importReplyScreenNames = PAST_HANDLES || [];
+    const importReplyScreenNames = twitterHandles || [];
     if(importReplyScreenNames.every(handle => in_reply_to_screen_name != handle)){
         console.log(`Skip Reply (wrong reply screen name :${in_reply_to_screen_name})`, importReplyScreenNames);
         return null;
@@ -48,6 +43,7 @@ export function getReplyRefs({in_reply_to_screen_name, in_reply_to_status_id}, t
 
 
 export function getEmbeddedUrlAndRecord(
+    twitterHandles: string[],
     urls: Array<{expanded_url: string}>, 
     tweets: Array<{
         tweet: Record<string, string>,
@@ -68,7 +64,7 @@ export function getEmbeddedUrlAndRecord(
 
     // get the last one url to embed
     const reversedUrls = urls.reverse(); 
-    embeddedTweetUrl = reversedUrls.find(({expanded_url})=> checkPastHandles(expanded_url))?.expanded_url ?? null;
+    embeddedTweetUrl = reversedUrls.find(({expanded_url})=> checkPastHandles(twitterHandles, expanded_url))?.expanded_url ?? null;
     
     if(!embeddedTweetUrl){
         return nullResult;

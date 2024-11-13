@@ -1,25 +1,30 @@
+import { load } from 'cheerio';
 import * as dotenv from 'dotenv';
 import { http, https } from 'follow-redirects';
 import FS from 'fs';
 import he from 'he';
 import path from 'path';
 import process, { title } from 'process';
-import URI from 'urijs';
 import sharp from 'sharp';
+import URI from 'urijs';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
-import {
-    getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs, PAST_HANDLES
-} from './libs/bskyParams';
+import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
+
 let fetch: any;
 (async () => {
     fetch = (await import('node-fetch')).default;
 })();
-import { load } from 'cheerio'
 const oembetter = require('oembetter')();
 oembetter.endpoints(oembetter.suggestedEndpoints);
+
+const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
+const MAX_FILE_SIZE = 1 * 1000 * 1000; // 1MiB
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
 
 dotenv.config();
 
@@ -27,23 +32,7 @@ const agent = new AtpAgent({
     service: 'https://bsky.social',
 })
 
-const SIMULATE = process.env.SIMULATE === "1";
-const API_DELAY = 2500; // https://docs.bsky.app/docs/advanced-guides/rate-limits
-const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
-const DISABLE_IMPORT_REPLY = process.env.DISABLE_IMPORT_REPLY === "1";
-const MAX_FILE_SIZE = 1 * 1000 * 1000; // 1MiB
-
-
-let MIN_DATE: Date | undefined = undefined;
-if (process.env.MIN_DATE != null && process.env.MIN_DATE.length > 0)
-    MIN_DATE = new Date(process.env.MIN_DATE as string);
-
-let MAX_DATE: Date | undefined = undefined;
-if (process.env.MAX_DATE != null && process.env.MAX_DATE.length > 0)
-    MAX_DATE = new Date(process.env.MAX_DATE as string);
-
 let alreadySavedCache = false;
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
 
 class RateLimitedAgent {
     private agent: AtpAgent;
@@ -67,6 +56,7 @@ class RateLimitedAgent {
     }
 
     async call<T>(method: () => Promise<T>): Promise<T> {
+        let attempts = 0;
         while (true) {
             try {
                 if (this.waitingForRateLimit) {
@@ -75,6 +65,14 @@ class RateLimitedAgent {
                 }
                 return await method();
             } catch (error: any) {
+                if ( ++attempts > 5) {
+                    throw error;
+                }
+                if (error.message.includes('fetch failed')) {
+                    console.warn(`Fetch failed, retrying attempt ${attempts}/5...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    continue;
+                }
                 if (error.status === 429) {
                     await this.handleRateLimit(error);
                 } else {
@@ -151,13 +149,15 @@ async function resolveShorURL(url: string): Promise<string> {
 }
 
 async function cleanTweetText(
-  tweetFullText: string, 
-  urlMappings: Array<{
-    url: string;
-    expanded_url: string
-  }>, 
-  embeddedUrl: string|null,
-  tweets
+    twitterHandles: string[],
+    blueskyUsername: string,
+    tweetFullText: string, 
+    urlMappings: Array<{
+        url: string;
+        expanded_url: string
+    }>, 
+    embeddedUrl: string|null,
+    tweets
 ): Promise<string> {
     let newText = tweetFullText;
     const urls: string[] = [];
@@ -180,12 +180,12 @@ async function cleanTweetText(
                 return urls[index];
             });
 
-            if (   checkPastHandles(newUrl) 
+            if (   checkPastHandles(twitterHandles, newUrl) 
                 && newUrl.indexOf("/photo/") == -1 
                 && newUrl.indexOf("/video/") == -1 
                 && embeddedUrl != newUrl) {
               // self quote exchange ( tweet-> bsky)
-              newUrls.push(convertToBskyPostUrl(newUrl, tweets))
+              newUrls.push(convertToBskyPostUrl(blueskyUsername, newUrl, tweets))
             }else{
               newUrls.push(newUrl)
             }
@@ -197,7 +197,7 @@ async function cleanTweetText(
             newText = URI.withinString(tweetFullText, (url, start, end, source) => {
                 // I exclude links to photos, because they have already been inserted into the Bluesky post independently
                 // also exclude embeddedUrl (ex. your twitter quote post)
-                if ( (checkPastHandles(newUrls[j]) && (newUrls[j].indexOf("/photo/") > 0 || newUrls[j].indexOf("/video/") > 0) )
+                if ( (checkPastHandles(twitterHandles, newUrls[j]) && (newUrls[j].indexOf("/photo/") > 0 || newUrls[j].indexOf("/video/") > 0) )
                   || embeddedUrl == newUrls[j]
                 ) {
                     j++;
@@ -221,7 +221,7 @@ function cleanTweetFileContent(fileContent) {
         .replace(/;$/, "");
 }
 
-function getTweets(){
+function getTweets(archiveFolder: string){
     // get cache (from last time imported)
     let caches = []
     if(FS.existsSync(TWEETS_MAPPING_FILE_NAME)){
@@ -229,12 +229,12 @@ function getTweets(){
     }
 
     // get original tweets
-    const fTweets = FS.readFileSync(process.env.ARCHIVE_FOLDER + "/data/tweets.js");
+    const fTweets = FS.readFileSync(path.join(archiveFolder, 'data', 'tweets.js'));
     let tweets = JSON.parse(cleanTweetFileContent(fTweets));
 
     let archiveExists = true;
     for (let i=1; archiveExists; i++) {
-        let archiveFile = `${process.env.ARCHIVE_FOLDER}/data/tweets-part${i}.js`;
+        let archiveFile = path.join(archiveFolder, 'data', `tweets-part${i}.js`);
         archiveExists = FS.existsSync(archiveFile)
         if( archiveExists ) {
             let fTweetsPart = FS.readFileSync(archiveFile);
@@ -434,11 +434,73 @@ async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<B
 }
 
 async function main() {
-    console.log(`Import started at ${new Date().toISOString()}`)
-    console.log(`SIMULATE is ${SIMULATE ? "ON" : "OFF"}`);
-    console.log(`IMPORT REPLY is ${!DISABLE_IMPORT_REPLY ? "ON" : "OFF"}`);
 
-    const tweets = getTweets();
+    const argv = yargs(hideBin(process.argv))
+        .option('simulate', {
+            type: 'boolean',
+            description: 'Simulate the import without making any changes (defaults to false)',
+            default: process.env.SIMULATE === '1',
+        })
+        .option('disable-import-reply', {
+            type: 'boolean',
+            description: 'Disable importing replies',
+            default: process.env.DISABLE_IMPORT_REPLY === '1',
+        })
+        .option('min-date', {
+            type: 'string',
+            description: 'Minimum date for tweets to import (YYYY-MM-DD)',
+            default: process.env.MIN_DATE,
+        })
+        .option('max-date', {
+            type: 'string',
+            description: 'Maximum date for tweets to import (YYYY-MM-DD)',
+            default: process.env.MAX_DATE,
+        })
+        .option('api-delay', {
+            type: 'number',
+            description: 'Delay between API calls in milliseconds',
+            default: process.env.API_DELAY ? parseInt(process.env.API_DELAY) : 2500,
+        })
+        .option('archive-folder', {
+            type: 'string',
+            description: 'Path to the archive folder',
+            default: process.env.ARCHIVE_FOLDER,
+            demandOption: true,
+        })
+        .option('bluesky-username', {
+            type: 'string',
+            description: 'Bluesky username',
+            default: process.env.BLUESKY_USERNAME,
+            demandOption: true,
+        })
+        .option('bluesky-password', {
+            type: 'string',
+            description: 'Bluesky password',
+            default: process.env.BLUESKY_PASSWORD,
+            demandOption: true,
+        })
+        .option('twitter-handles', {
+            type: 'array',
+            description: 'Twitter handles to import',
+            default: process.env.TWITTER_HANDLES?.split(','),
+            demandOption: true,
+        })
+        .help()
+        .argv;
+
+    let minDate = argv.minDate ? new Date(argv.minDate) : undefined;
+    let maxDate = argv.maxDate ? new Date(argv.maxDate) : undefined;
+
+    console.log(`Import started at ${new Date().toISOString()}`)
+    console.log(`Simulate is ${argv.simulate ? "ON" : "OFF"}`);
+    console.log(`Import Reply is ${!argv.disableImportReply ? "ON" : "OFF"}`);
+    console.log(`Min Date is ${minDate ? minDate.toISOString() : "OFF"}`);
+    console.log(`Max Date is ${maxDate ? maxDate.toISOString() : "OFF"}`);
+    console.log(`API Delay is ${argv.apiDelay}ms`);
+    console.log(`Archive Folder is ${argv.archiveFolder}`);
+    console.log(`Bluesky Username is ${argv.blueskyUsername}`);
+
+    const tweets = getTweets(argv.archiveFolder);
   
     let importedTweet = 0;
     if (tweets != null && tweets.length > 0) {
@@ -448,7 +510,7 @@ async function main() {
             return ad - bd;
         });
 
-        await rateLimitedAgent.login({ identifier: process.env.BLUESKY_USERNAME!, password: process.env.BLUESKY_PASSWORD! });
+        await rateLimitedAgent.login({ identifier: argv.blueskyUsername, password: argv.blueskyPassword });
        
         process.on('exit', () => saveCache(sortedTweets));
         process.on('SIGINT', () => process.exit());
@@ -461,9 +523,9 @@ async function main() {
                 const tweet_createdAt = tweetDate.toISOString();
 
                 //this cheks assume that the array is sorted by date (first the oldest)
-                if (MIN_DATE != undefined && tweetDate < MIN_DATE)
+                if (minDate != undefined && tweetDate < minDate)
                     continue;
-                if (MAX_DATE != undefined && tweetDate > MAX_DATE)
+                if (maxDate != undefined && tweetDate > maxDate)
                     break;
                 
                 if(bsky){
@@ -477,13 +539,13 @@ async function main() {
                 console.log(` Created at ${tweet_createdAt}`);
                 console.log(` Full text '${tweet.full_text}'`);
 
-                if (DISABLE_IMPORT_REPLY && tweet.in_reply_to_screen_name) {
+                if (argv.disableImportReply && tweet.in_reply_to_screen_name) {
                     console.log("Discarded (reply)");
                     continue;
                 }
 
                 if (tweet.in_reply_to_screen_name) {
-                    if (PAST_HANDLES.some(handle => tweet.in_reply_to_screen_name == handle)) {
+                    if (argv.twitterHandles.some(handle => tweet.in_reply_to_screen_name == handle)) {
                         // Remove "@screen_name" from the beginning of the tweet's full text
                         const replyPrefix = `@${tweet.in_reply_to_screen_name} `;
                         if (tweet.full_text.startsWith(replyPrefix)) {
@@ -540,7 +602,7 @@ async function main() {
                                 break;
                             }
 
-                            let mediaFilename = `${process.env.ARCHIVE_FOLDER}${path.sep}data${path.sep}tweets_media${path.sep}${tweet.id}-${media?.media_url.substring(i + 1)}`;
+                            let mediaFilename = `${argv.archiveFolder}${path.sep}data${path.sep}tweets_media${path.sep}${tweet.id}-${media?.media_url.substring(i + 1)}`;
 
                             let localMediaFileNotFound = true;
                             if (FS.existsSync(mediaFilename)) {
@@ -548,7 +610,7 @@ async function main() {
                             }
 
                             if (localMediaFileNotFound) {
-                                const wildcardPath = `${process.env.ARCHIVE_FOLDER}${path.sep}data${path.sep}tweets_media${path.sep}${tweet.id}-*`;
+                                const wildcardPath = `${argv.archiveFolder}${path.sep}data${path.sep}tweets_media${path.sep}${tweet.id}-*`;
                                 const files = FS.readdirSync(path.dirname(wildcardPath)).filter(file => file.startsWith(`${tweet.id}-`));
 
                                 if (files.length > 0) {
@@ -570,7 +632,7 @@ async function main() {
                                 mimeType = 'image/jpeg';
                             }
 
-                            if (!SIMULATE) {
+                            if (!argv.simulate) {
                                 const blobRecord = await rateLimitedAgent.uploadBlob(imageBuffer, {
                                     encoding: mimeType
                                 });
@@ -593,7 +655,7 @@ async function main() {
                                 tweet.full_text = tweet.full_text.replace(media?.url, '').replace(/\s\s+/g, ' ').trim();
                             }
 
-                            const baseVideoPath = `${process.env.ARCHIVE_FOLDER}/data/tweets_media/${tweet.id}-`;
+                            const baseVideoPath = `${argv.archiveFolder}/data/tweets_media/${tweet.id}-`;
                             let videoFileName = '';
                             let videoFilePath = '';
                             let localVideoFileNotFound = true;
@@ -614,7 +676,7 @@ async function main() {
                                 continue
                             }
     
-                            if (!SIMULATE) {
+                            if (!argv.simulate) {
                                 const { data: serviceAuth } = await rateLimitedAgent.getServiceAuth(
                                     {
                                       aud: `did:web:${rateLimitedAgent.dispatchUrl.host}`,
@@ -677,16 +739,16 @@ async function main() {
                 }
 
                 // handle bsky embed record
-                const { embeddedUrl = null, embeddedRecord = null } = getEmbeddedUrlAndRecord(tweet.entities?.urls, sortedTweets);
+                const { embeddedUrl = null, embeddedRecord = null } = getEmbeddedUrlAndRecord(argv.twitterHandles, tweet.entities?.urls, sortedTweets);
 
                 let replyTo: {}|null = null; 
-                if ( !DISABLE_IMPORT_REPLY && !SIMULATE && tweet.in_reply_to_screen_name) {
-                    replyTo = getReplyRefs(tweet,sortedTweets);
+                if ( !argv.disableImportReply && !argv.simulate && tweet.in_reply_to_screen_name) {
+                    replyTo = getReplyRefs(argv.twitterHandles, tweet, sortedTweets);
                 }
 
                 let postText = tweet.full_text as string;
-                if (!SIMULATE) {
-                    postText = await cleanTweetText(tweet.full_text, tweet.entities?.urls, embeddedUrl, sortedTweets);
+                if (!argv.simulate) {
+                    postText = await cleanTweetText(argv.twitterHandles, argv.blueskyUsername, tweet.full_text, tweet.entities?.urls, embeddedUrl, sortedTweets);
 
                     if (postText.length > 300)
                         postText = tweet.full_text;
@@ -699,7 +761,7 @@ async function main() {
                 }
                
                 let externalEmbed = null;
-                if (tweet.entities?.urls) {
+                if (tweet.entities?.urls && !argv.simulate) {
                     for (const urlEntity of tweet.entities.urls) {
                         if (!urlEntity.expanded_url.startsWith('https://twitter.com') && !urlEntity.expanded_url.startsWith('https://x.com')) {
                             try {
@@ -750,16 +812,16 @@ async function main() {
 
                 console.log(postRecord);
 
-                if (!SIMULATE) {
+                if (!argv.simulate) {
                     //I wait 3 seconds so as not to exceed the api rate limits
-                    await new Promise(resolve => setTimeout(resolve, API_DELAY));
+                    await new Promise(resolve => setTimeout(resolve, argv.apiDelay));
 
                     try 
                     {
                         const recordData = await rateLimitedAgent.post(postRecord);
                         const i = recordData.uri.lastIndexOf("/");
                         if (i > 0) {
-                            const postUri = getBskyPostUrl(recordData.uri);
+                            const postUri = getBskyPostUrl(argv.blueskyUsername, recordData.uri);
                             console.log("Bluesky post create, URL: " + postUri);
 
                             importedTweet++;
@@ -789,9 +851,9 @@ async function main() {
         }
     }
 
-    if (SIMULATE) {
+    if (argv.simulate) {
         // In addition to the delay in AT Proto API calls, we will also consider a 5% delta for URL resolution calls
-        const minutes = Math.round((importedTweet * API_DELAY / 1000) / 60) + (1 / 0.1);
+        const minutes = Math.round((importedTweet * argv.apiDelay / 1000) / 60) + (1 / 0.1);
         const hours = Math.floor(minutes / 60);
         const min = minutes % 60;
         console.log(`Estimated time for real import: ${hours} hours and ${min} minutes`);

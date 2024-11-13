@@ -24,7 +24,8 @@
     "sharp": "^0.33.5",
     "cheerio": "^1.0.0",
     "node-fetch": "^3.3.2",
-    "oembetter": "1.1.4"
+    "oembetter": "1.1.4",
+    "yargs": "17.7.2"
   },
   "devDependencies": {
     "@types/follow-redirects": "^1.14.4",

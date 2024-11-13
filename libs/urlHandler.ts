@@ -1,18 +1,13 @@
-import * as dotenv from 'dotenv';
-import * as process from 'process';
 
-dotenv.config();
-
-export const PAST_HANDLES = process.env.PAST_HANDLES!.split(",");
-
-export function checkPastHandles(url: string): boolean{
-    return (PAST_HANDLES || []).some(handle => 
+export function checkPastHandles(twitterHandles: string[], url: string): boolean{
+    return (twitterHandles || []).some(handle => 
         url.startsWith(`https://x.com/${handle}/`) || 
         url.startsWith(`https://twitter.com/${handle}/`)
     )
 }
 
 export function convertToBskyPostUrl(
+    blueskyUsername: string,
     tweetUrl:string , 
     tweets: Array<{
             tweet: Record<string, string>,
@@ -29,16 +24,16 @@ export function convertToBskyPostUrl(
     if(!tweet?.bsky){
         return tweetUrl;
     }
-    return getBskyPostUrl(tweet.bsky.uri);
+    return getBskyPostUrl(blueskyUsername, tweet.bsky.uri);
 }
 
-export function getBskyPostUrl(bskyUri: string): string {
+export function getBskyPostUrl(blueskyUsername : string, bskyUri: string): string {
     const i = bskyUri.lastIndexOf("/");
     if(i == -1){
         return bskyUri;
     }
     const rkey = bskyUri.substring(i + 1);
-    return `https://bsky.app/profile/${process.env.BLUESKY_USERNAME!}/post/${rkey}`;
+    return `https://bsky.app/profile/${blueskyUsername!}/post/${rkey}`;
 }
 
 
