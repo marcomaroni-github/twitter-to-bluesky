@@ -1,29 +1,26 @@
+import { load } from 'cheerio';
 import * as dotenv from 'dotenv';
 import { http, https } from 'follow-redirects';
 import FS from 'fs';
 import he from 'he';
 import path from 'path';
 import process, { title } from 'process';
-import URI from 'urijs';
 import sharp from 'sharp';
+import URI from 'urijs';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
-import {
-    getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs
-} from './libs/bskyParams';
+import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
+
 let fetch: any;
 (async () => {
     fetch = (await import('node-fetch')).default;
 })();
-import { load } from 'cheerio'
 const oembetter = require('oembetter')();
 oembetter.endpoints(oembetter.suggestedEndpoints);
-
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
-
 
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
 const MAX_FILE_SIZE = 1 * 1000 * 1000; // 1MiB
@@ -485,7 +482,7 @@ async function main() {
         .option('twitter-handles', {
             type: 'array',
             description: 'Twitter handles to import',
-            default: process.env.PAST_HANDLES?.split(','),
+            default: process.env.TWITTER_HANDLES?.split(','),
             demandOption: true,
         })
         .help()
