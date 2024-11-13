@@ -558,6 +558,9 @@ async function main() {
                         console.log("Discarded (reply to another user)");
                         continue;
                     }
+                } else if ( tweet.in_reply_to_user_id !== undefined) {
+                    console.log("Discarded (reply to a former user)");
+                    continue;
                 }
 
                 if (tweet.full_text.startsWith("RT ")) {
