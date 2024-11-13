@@ -17,6 +17,10 @@ They use the official archive export file format from X/Twitter, this utility re
 - Nodejs >= 20.12x
 - The archive of your tweets from the X/Twitter, unzipped in your local disk.
 
+## Breaking changes from version < 0.10
+
+ - PAST_HANDLES parameter has been renamed to TWITTER_HANDLES, It is therefore necessary to update a .env file if it was created before version 0.10
+
 ## Getting started
 
 Before everything else, you need to request your Twitter archive. You can do this by following the instructions on the official Twitter support page: [Requesting your Twitter archive](https://help.twitter.com/en/managing-your-account/how-to-download-your-twitter-archive). This process may take a few days, and you will receive an email with a link to download the archive once it's ready.
