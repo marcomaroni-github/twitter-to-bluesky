@@ -59,6 +59,7 @@ class RateLimitedAgent {
     }
 
     async call<T>(method: () => Promise<T>): Promise<T> {
+        let attempts = 0;
         while (true) {
             try {
                 if (this.waitingForRateLimit) {
@@ -67,6 +68,14 @@ class RateLimitedAgent {
                 }
                 return await method();
             } catch (error: any) {
+                if ( ++attempts > 5) {
+                    throw error;
+                }
+                if (error.message.includes('fetch failed')) {
+                    console.warn(`Fetch failed, retrying attempt ${attempts}/5...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    continue;
+                }
                 if (error.status === 429) {
                     await this.handleRateLimit(error);
                 } else {
