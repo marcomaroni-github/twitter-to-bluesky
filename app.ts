@@ -172,7 +172,7 @@ async function cleanTweetText(
         for (let index = 0; index < urls.length; index++) {
             // use tweet.entities.urls mapping instead, so we can make sure the result is the same as the origin. 
             const newUrl = await Promise.race([
-                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
+                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 25000); }),
                 urlMappings.find(({url}) => urls[index] == url )?.expanded_url ?? resolveShorURL(urls[index])
             ]).catch(err => {
                 console.warn(`Error resolving URL: ${urls[index]}  ${err.message}`);
@@ -276,7 +276,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
         try
         {
             oembedResult = await Promise.race([
-                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
+                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 25000); }),
                 new Promise((resolve, reject) => {
                     oembetter.fetch(url,
                         {
@@ -286,7 +286,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                                 'Accept-Language': 'en-US,en;q=0.9',
                                 'Accept-Encoding': 'gzip, deflate',
                                 'Connection': 'keep-alive'
-                        }, timeout: 5000 },
+                        }, timeout: 25000 },
                         (err, response) => {
                             if (err) {
                                 reject(err);
@@ -305,7 +305,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
             card.description = oembedResult.description || card.description;
             if (oembedResult.thumbnail_url) {
                 const imgResp = await Promise.race(
-                    [new Promise<string>((resolve, reject) => {setTimeout(() => reject(new Error('Timeout')), 5000)}),                    
+                    [new Promise<string>((resolve, reject) => {setTimeout(() => reject(new Error('Timeout')), 25000)}),                    
                     fetch(oembedResult.thumbnail_url,
                     {
                         headers: {
@@ -314,7 +314,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                             'Accept-Language': 'en-US,en;q=0.9',
                             'Accept-Encoding': 'gzip, deflate',
                             'Connection': 'keep-alive'
-                        }, timeout: 5000})]);
+                        }, timeout: 25000})]);
                 if (imgResp.ok) {
                     let imgBuffer = await imgResp.arrayBuffer();
                     let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
@@ -342,7 +342,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
         if (card.title.length == 0 && card.description.length == 0 && card.thumb.size == 0)
         {
             const resp = await Promise.race([
-                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
+                new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 25000); }),
                 fetch(url, {
                     headers: {
                         'User-Agent': USER_AGENT,
@@ -352,7 +352,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                         'Connection': 'keep-alive'
                     },
                     redirect: 'follow',
-                    timeout: 5000
+                    timeout: 25000
                 })]);
             if (!resp.ok) {
                 if ( resp.status == 401 && url.startsWith('http:') ) {
@@ -382,7 +382,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                 }
 
                 const imgResp = await Promise.race([
-                    new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 5000); }),
+                    new Promise<string>((resolve, reject) => { setTimeout(() => reject(new Error('Timeout')), 25000); }),
                     fetch(imgUrl,
                         {
                             headers: {
@@ -391,7 +391,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                                 'Accept-Language': 'en-US,en;q=0.9',
                                 'Accept-Encoding': 'gzip, deflate',
                                 'Connection': 'keep-alive'
-                        }, timeout: 5000})]);
+                        }, timeout: 25000})]);
                 if (imgResp.ok) {
                     let imgBuffer = await imgResp.arrayBuffer();
                     let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
