@@ -522,7 +522,7 @@ async function main() {
         .option('ignore-video-errors', {
             type: 'boolean',
             description: 'Continue processing tweets when the video service returns a job without an ID (usually because the video is too long)',
-            default: process.env.IGNORE_VIDEO_ERRORS === '1'
+            default: process.env.IGNORE_VIDEO_ERRORS === '1',
         })
         .help()
         .argv;
@@ -538,6 +538,7 @@ async function main() {
     console.log(`API Delay is ${argv.apiDelay}ms`);
     console.log(`Archive Folder is ${argv.archiveFolder}`);
     console.log(`Bluesky Username is ${argv.blueskyUsername}`);
+    console.log(`Ignore video errors? ${argv.ignoreVideoErrors}`);
 
     const tweets = getTweets(argv.archiveFolder);
   

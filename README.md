@@ -82,6 +82,9 @@ These arguments are optional and help customize the import:
 - `--api-delay <milliseconds>` - Wait time between posts in milliseconds (default: 2500)
     Example: `--api-delay 3000`
 
+- `--ignore-video-errors` - Do not stop processing tweets if the video service fails to provide a JobId (typically when the video exceeds the max duration)
+    Example: `--ignore-video-errors`
+
 **Examples when running on Windows**
 
 Assuming you stored the Twitter archive in `C:\Temp\twitter-archive` and you want to import tweets from two Twitter handles:
@@ -115,6 +118,7 @@ Additionally you can set these environment variables to customize behavior:
 - `MAX_DATE` = indicates the maximum date of tweets to import, ISO format (e.g. '2012-01-01' or '2014-04-09T12:36:49.328Z').
 - `DISABLE_IMPORT_REPLY` = if set to 1 disables the import of replies to your tweets (threads).
 - `API_DELAY` = Delay between Bluesky API calls in milliseconds
+- `IGNORE_VIDEO_ERRORS` = if set to "1" continue processing tweets when a video submission fails
 
 **Example of a `.env` file:**
 
@@ -123,6 +127,7 @@ BLUESKY_USERNAME=test.bsky.social
 BLUESKY_PASSWORD=pwd123
 ARCHIVE_FOLDER=C:/Temp/twitter-archive
 TWITTER_HANDLES=marcomaroni,user
+IGNORE_VIDEO_ERRORS=1
 ```
 
 Then you can run the script with `npm start` or `npm run start_log` to write an import.log file.
