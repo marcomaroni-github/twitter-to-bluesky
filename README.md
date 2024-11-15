@@ -85,6 +85,9 @@ These arguments are optional and help customize the import:
 - `--ignore-video-errors` - Do not stop processing tweets if the video service fails to provide a JobId (typically when the video exceeds the max duration)
     Example: `--ignore-video-errors`
 
+- `--video-upload-retries` - Number of times to retry uploading videos if JOB_STATE_FAILED encountered.
+    Example: `--video-upload-retries 5`
+
 **Examples when running on Windows**
 
 Assuming you stored the Twitter archive in `C:\Temp\twitter-archive` and you want to import tweets from two Twitter handles:
@@ -119,6 +122,7 @@ Additionally you can set these environment variables to customize behavior:
 - `DISABLE_IMPORT_REPLY` = if set to 1 disables the import of replies to your tweets (threads).
 - `API_DELAY` = Delay between Bluesky API calls in milliseconds
 - `IGNORE_VIDEO_ERRORS` = if set to "1" continue processing tweets when a video submission fails
+- `VIDEO_UPLOAD_RETRIES` = set to the number of times to attempt to upload a video if JOB_STATE_FAILED encountered
 
 **Example of a `.env` file:**
 
