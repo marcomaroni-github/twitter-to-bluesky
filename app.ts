@@ -519,6 +519,11 @@ async function main() {
             default: process.env.TWITTER_HANDLES?.split(','),
             demandOption: true,
         })
+        .option('ignore-video-errors', {
+            type: 'boolean',
+            description: 'Continue processing tweets when the video service returns a job without an ID (usually because the video is too long)',
+            default: process.env.IGNORE_VIDEO_ERRORS === '1',
+        })
         .help()
         .argv;
 
@@ -533,6 +538,7 @@ async function main() {
     console.log(`API Delay is ${argv.apiDelay}ms`);
     console.log(`Archive Folder is ${argv.archiveFolder}`);
     console.log(`Bluesky Username is ${argv.blueskyUsername}`);
+    console.log(`Ignore video errors? ${argv.ignoreVideoErrors}`);
 
     const tweets = getTweets(argv.archiveFolder);
   
@@ -673,7 +679,6 @@ async function main() {
                                 const blobRecord = await rateLimitedAgent.uploadBlob(imageBuffer, {
                                     encoding: mimeType
                                 });
-
                                 embeddedImage.push({
                                     alt: "",
                                     image: {
@@ -750,26 +755,28 @@ async function main() {
                                 }
                                 console.log(" JobId:", jobStatus.jobId);
         
-                                let blob: BlobRef | undefined = jobStatus.blob;
-        
-                                const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
-                                
-                                while (!blob) {
-                                  const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
-                                    { jobId: jobStatus.jobId },
-                                  );
-                                  console.log("  Status:",
-                                    status.jobStatus.state,
-                                    status.jobStatus.progress || "",
-                                  );
-                                  if (status.jobStatus.blob) {
-                                    blob = status.jobStatus.blob;
-                                  }
-                                  // wait a second
-                                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                                if (jobStatus.jobId || !argv.ignoreVideoErrors) {
+                                    let blob: BlobRef | undefined = jobStatus.blob;
+
+                                    const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
+
+                                    while (!blob) {
+                                      const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
+                                        { jobId: jobStatus.jobId },
+                                      );
+                                      console.log("  Status:",
+                                        status.jobStatus.state,
+                                        status.jobStatus.progress || "",
+                                      );
+                                      if (status.jobStatus.blob) {
+                                        blob = status.jobStatus.blob;
+                                      }
+                                      // wait a second
+                                      await new Promise((resolve) => setTimeout(resolve, 1000));
+                                    }
+
+                                    embeddedVideo = blob;
                                 }
-    
-                                embeddedVideo = blob;
                             }
                         }
                     }
