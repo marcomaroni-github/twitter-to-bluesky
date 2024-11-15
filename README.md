@@ -82,6 +82,9 @@ These arguments are optional and help customize the import:
 - `--api-delay <milliseconds>` - Wait time between posts in milliseconds (default: 2500)
     Example: `--api-delay 3000`
 
+- `--circle-warnings` - When used with `--simulate`, logs a warning for tweets that would be imported that could potentially be Circle tweets (see below for more info).
+    Example: `--circle-warnings`
+
 **Examples when running on Windows**
 
 Assuming you stored the Twitter archive in `C:\Temp\twitter-archive` and you want to import tweets from two Twitter handles:
@@ -115,6 +118,7 @@ Additionally you can set these environment variables to customize behavior:
 - `MAX_DATE` = indicates the maximum date of tweets to import, ISO format (e.g. '2012-01-01' or '2014-04-09T12:36:49.328Z').
 - `DISABLE_IMPORT_REPLY` = if set to 1 disables the import of replies to your tweets (threads).
 - `API_DELAY` = Delay between Bluesky API calls in milliseconds
+- `CIRCLE_WARNINGS` = When used with SIMULATE, logs a warning about tweets that are potentially Circle tweets (see below).
 
 **Example of a `.env` file:**
 
@@ -126,6 +130,16 @@ TWITTER_HANDLES=marcomaroni,user
 ```
 
 Then you can run the script with `npm start` or `npm run start_log` to write an import.log file.
+
+## Circle Tweets
+
+The tweets in twitter archives include Twitter Circle tweets without any distinguishing characteristics that would indicate they were meant for a limited audience.
+As such, if you used this feature and would like to prevent the public presentation of potentially private information, you may want to review any tweets in your archive made between May of 2022 and October of 2023 before importing them to Bluesky.
+To assist in this effort, you may find it useful to enable the `--circle-warnings` and `--simulate` flags, which produces a log message for each tweet made between these dates that is identified as a candidate for importing to Bluesky. The log message is in the following format:
+
+```
+${tweet.id} created on ${tweet.created_at} is a potential Circle Tweet!
+```
 
 ## License
 "Twitter To Bluesky" is published under the MIT license.

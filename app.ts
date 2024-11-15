@@ -519,6 +519,11 @@ async function main() {
             default: process.env.TWITTER_HANDLES?.split(','),
             demandOption: true,
         })
+        .option('circle-warnings', {
+            type: 'boolean',
+            description: 'Log a warning for any tweets between May 2022 and October 2023 when used with --simulate.',
+            default: process.env.CIRCLE_WARNINGS === "1",
+        })
         .help()
         .argv;
 
@@ -533,6 +538,7 @@ async function main() {
     console.log(`API Delay is ${argv.apiDelay}ms`);
     console.log(`Archive Folder is ${argv.archiveFolder}`);
     console.log(`Bluesky Username is ${argv.blueskyUsername}`);
+    console.log(`Circle Warnings enabled? ${argv.circleWarnings}`);
 
     const tweets = getTweets(argv.archiveFolder);
   
@@ -555,6 +561,8 @@ async function main() {
                 const { tweet, bsky } = currentData;
                 const tweetDate = new Date(tweet.created_at);
                 const tweet_createdAt = tweetDate.toISOString();
+                const circleEpoch = new Date("2022-05-01")
+                const circleEnd   = new Date("2023-11-01")
 
                 //this cheks assume that the array is sorted by date (first the oldest)
                 if (minDate != undefined && tweetDate < minDate)
@@ -877,6 +885,9 @@ async function main() {
                     }
                     
                 } else {
+                    if (tweetDate > circleEpoch && tweetDate < circleEnd) {
+                        console.log(`${tweet.id} created on ${tweet.created_at} is a potential Circle Tweet!`);
+                    }
                     importedTweet++;
                 }
             }
