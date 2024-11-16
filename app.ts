@@ -545,9 +545,7 @@ async function main() {
     let importedTweet = 0;
     if (tweets != null && tweets.length > 0) {
         const sortedTweets = tweets.sort((a, b) => {
-            let ad = new Date(a.tweet.created_at).getTime();
-            let bd = new Date(b.tweet.created_at).getTime();
-            return ad - bd;
+            return Number(a.tweet.id) - Number(b.tweet.id);
         });
 
         await rateLimitedAgent.login({ identifier: argv.blueskyUsername, password: argv.blueskyPassword });
@@ -591,7 +589,7 @@ async function main() {
                         if (tweet.full_text.startsWith(replyPrefix)) {
                             tweet.full_text = tweet.full_text.replace(replyPrefix, '').trim();
                         } else {
-                            console.log("Discarded (reply to self in aother user's thread)");
+                            console.log("Discarded (reply to self in another user's thread)");
                             continue;
                         }
                     } else {
