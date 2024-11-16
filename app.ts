@@ -545,9 +545,7 @@ async function main() {
     let importedTweet = 0;
     if (tweets != null && tweets.length > 0) {
         const sortedTweets = tweets.sort((a, b) => {
-            let ad = new Date(a.tweet.created_at).getTime();
-            let bd = new Date(b.tweet.created_at).getTime();
-            return ad - bd;
+            return parseInt(a.tweet.id) - parseInt(b.tweet.id);
         });
 
         await rateLimitedAgent.login({ identifier: argv.blueskyUsername, password: argv.blueskyPassword });
