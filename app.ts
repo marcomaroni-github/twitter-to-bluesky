@@ -603,8 +603,8 @@ async function main() {
                         const replyPrefix = `@${tweet.in_reply_to_screen_name} `;
                         if (tweet.full_text.startsWith(replyPrefix)) {
                             tweet.full_text = tweet.full_text.replace(replyPrefix, '').trim();
-                        } else {
-                            console.log("Discarded (reply to self in aother user's thread)");
+                        } else if (tweet.full_text.startsWith("@")) {
+                            console.log("Discarded (reply to self in another user's thread)");
                             continue;
                         }
                     } else {
