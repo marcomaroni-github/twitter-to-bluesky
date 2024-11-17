@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "npx tsc && node app.js",
-    "start_log": "npx tsc && node app.js > import.log",
+    "start_log": "npx tsc && node app.js >> import.log",
     "compile": "npx tsc"
   },
   "author": "",
