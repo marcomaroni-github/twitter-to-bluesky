@@ -80,7 +80,7 @@ You must provide these arguments for the program to work:
 - `--bluesky-password <password>` - Your Bluesky account App password (Settings > App Passwords; looks like XXXX-XXXX-XXXX-XXXX)
     Example: `--bluesky-password mypassword123`
 
-- `--twitter-handles <handles>` - Your previous Twitter usernames (without @), separate multiple names with spaces. You only need to provide multiple handles if you ever changed your Twitter username for the same imported account. It is used to intercept replies to oneself (threads) and filter out some duplicate links included in the tweet text from the tweet archive.
+- `--twitter-handles <handles>` - Your previous Twitter usernames (without @), separate multiple names with spaces, case sensitive. You only need to provide multiple handles if you ever changed your Twitter username for the same imported account. It is used to intercept replies to oneself (threads) and filter out some duplicate links included in the tweet text from the tweet archive.
     Example: `--twitter-handles johndoe jane123`
 
 #### Optional Arguments
@@ -131,7 +131,7 @@ Create an .env file in the project folder where you set the following variables 
 - `BLUESKY_USERNAME` = username into which you want to import the tweets (e.g. "test.bsky.social")
 - `BLUESKY_PASSWORD` = account password created via App Password (Settings > App Passwords; eg., "XXXX-XXXX-XXXX-XXXX")
 - `ARCHIVE_FOLDER` = full path to the folder containing the X/Twitter archive (e.g. "C:/Temp/twitter-archive")
-- `TWITTER_HANDLES` - one or more x/twitter handles without @, comma separated (e.g. 'marcomaroni,user'). Corresponds to the `--twitter-handles` argument.
+- `TWITTER_HANDLES` - one or more x/twitter handles without @, comma separated, case sensitive (e.g. 'marcomaroni,user'). Corresponds to the `--twitter-handles` argument.
 
 Additionally you can set these environment variables to customize behavior:
 
