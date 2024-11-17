@@ -39,9 +39,9 @@ In the project folder now run `npm install`. This will download and install all 
 Add the directory to your exported data
 
 ```
-	"mounts": [
-		"source=PATH/TO/LOCAL,target=/workspaces/twitter-to-bluesky/data,type=bind,consistency=cached"
-	]
+"mounts": [
+    "source=PATH/TO/LOCAL,target=/workspaces/twitter-to-bluesky/data,type=bind,consistency=cached"
+]
 ```
 Use
 
