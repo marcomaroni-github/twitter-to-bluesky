@@ -62,6 +62,7 @@ Additionally you can set these environment variables to customize behavior:
 - `API_DELAY` = Delay between Bluesky API calls in milliseconds
 - `IGNORE_VIDEO_ERRORS` = if set to "1" continue processing tweets when a video submission fails
 - `VIDEO_UPLOAD_RETRIES` = set to the number of times to attempt to upload a video if JOB_STATE_FAILED encountered
+-  `IGNORE_TWEET_IDS` = one or more Tweet IDs, comma separated. Tweets with these IDs are not posted to Bluesky.
 
 **Example of a `.env` file:**
 
