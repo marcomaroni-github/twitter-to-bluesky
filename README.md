@@ -21,6 +21,25 @@ They use the official archive export file format from X/Twitter, this utility re
 
  - PAST_HANDLES parameter has been renamed to TWITTER_HANDLES, It is therefore necessary to update a .env file if it was created before version 0.10
 
+## Dev Container
+
+Added devcontainer because I wanted one.
+
+Add the directory to your exported data
+
+```
+	"mounts": [
+		"source=PATH/TO/LOCAL,target=/workspaces/twitter-to-bluesky/data,type=bind,consistency=cached"
+	]
+```
+Use
+
+```
+ node app.js --archive-folder
+```
+
+instead of `npm start`
+
 ## Getting started
 
 Before everything else, you need to request your Twitter archive. You can do this by following the instructions on the official Twitter support page: [Requesting your Twitter archive](https://help.twitter.com/en/managing-your-account/how-to-download-your-twitter-archive). This process may take a few days, and you will receive an email with a link to download the archive once it's ready.
@@ -38,7 +57,7 @@ In the project folder now run `npm install`. This will download and install all 
 
 You can run the program using command line arguments or environment variables. We recommend using command line arguments to start with, as they are easier to understand and manage.
 
-Mind that the program may have to run for a long time, potentially for several days, if you have a lot of tweets to import. It is recommended to run the program on a computer that you can leave running for a long time without interruptions. Once you hit your daily limit of posts, the program will display the time when the limit resets and wait until your limit is reset before continuing. You can put your computer to sleep while waiting. 
+Mind that the program may have to run for a long time, potentially for several days, if you have a lot of tweets to import. It is recommended to run the program on a computer that you can leave running for a long time without interruptions. Once you hit your daily limit of posts, the program will display the time when the limit resets and wait until your limit is reset before continuing. You can put your computer to sleep while waiting.
 
 If you have interrupted the program, you can restart it, and it will continue from where it left off. That information is stored in the "tweets_mapping.json" file in the project folder. Don't delete that file unless you want to start the import from scratch or import a different archive.
 
@@ -52,7 +71,7 @@ You need to gather your Twitter archive and create a Bluesky account before runn
 
 You must provide these arguments for the program to work:
 
-- `--archive-folder <path>` - The folder where your Twitter unzipped archive is stored 
+- `--archive-folder <path>` - The folder where your Twitter unzipped archive is stored
     Example: `--archive-folder "C:\Twitter\archive"`
 
 - `--bluesky-username <username>` - Your Bluesky account name
@@ -70,7 +89,7 @@ These arguments are optional and help customize the import:
 - `--simulate` - Test the import without actually posting. It is **highly recommended** to use this option first to see how many tweets will be imported and how long it will take.
     Example: `--simulate`
 
-- `--disable-import-reply` - Skip importing tweet replies 
+- `--disable-import-reply` - Skip importing tweet replies
     Example: `--disable-import-reply`
 
 - `--min-date YYYY-MM-DD` - Only import tweets posted after this date
@@ -134,7 +153,7 @@ TWITTER_HANDLES=marcomaroni,user
 IGNORE_VIDEO_ERRORS=1
 ```
 
-Then you can run the script with `npm start` or `npm run start_log` to write an import.log file.
+SEE NOTE ABOVE - Then you can run the script with `npm start` or `npm run start_log` to write an import.log file.
 
 ## License
 "Twitter To Bluesky" is published under the MIT license.
