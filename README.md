@@ -34,23 +34,6 @@ Navigate to the folder where you extracted the source code and open a terminal/c
 
 In the project folder now run `npm install`. This will download and install all the modules required by the module to run.
 
-## Dev Container
-
-Add the directory to your exported data
-
-```
-"mounts": [
-    "source=PATH/TO/LOCAL,target=/workspaces/twitter-to-bluesky/data,type=bind,consistency=cached"
-]
-```
-Use
-
-```
- node app.js --archive-folder
-```
-
-instead of `npm start`
-
 ## Run the program
 You can run the program using command line arguments or environment variables. We recommend using command line arguments to start with, as they are easier to understand and manage.
 
@@ -60,7 +43,7 @@ If you have interrupted the program, you can restart it, and it will continue fr
 
 **We highly recommend trying to simulate the import first and import a small range of tweets, using the additional parameters documented below.**
 
-## Using environment variables
+### Using environment variables
 You can also set the required parameters using environment variables or a `.env` file.
 
 Create an .env file in the project folder where you set the following variables or set those in your environment:
@@ -151,6 +134,24 @@ Assuming you stored the Twitter archive in your home folder and you want to impo
 ``` bash
 npm run start -- -- --archive-folder ~/twitter-archive --bluesky-username test.bsky.social --bluesky-password pwd123 --twitter-handles sampleuser1
 ```
+
+### Dev Container
+
+Add the directory to your exported data
+
+```
+"mounts": [
+    "source=PATH/TO/LOCAL,target=/workspaces/twitter-to-bluesky/data,type=bind,consistency=cached"
+]
+```
+Use
+
+```
+ node app.js --archive-folder
+```
+
+instead of `npm start`
+
 
 ## License
 "Twitter To Bluesky" is published under the MIT license.
