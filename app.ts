@@ -9,6 +9,11 @@ import sharp from 'sharp';
 import URI from 'urijs';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { exiftool } from 'exiftool-vendored';
+import { Buffer } from 'buffer';
+import { tmpdir } from 'os';
+import { randomUUID } from 'crypto';
+import fs from 'fs/promises';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
@@ -263,7 +268,7 @@ function saveCache(sortedTweets) {
     FS.writeFileSync(TWEETS_MAPPING_FILE_NAME, JSON.stringify(sortedTweets, null, 4));
 }
 
-async function fetchEmbedUrlCard(url: string): Promise<any> {
+async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Promise<any> {
     let card = {
         uri: url,
         title: "",
@@ -321,8 +326,13 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
 
                     if (imgBuffer.byteLength > MAX_FILE_SIZE) {
                         imgBuffer = await recompressImageIfNeeded(imgBuffer);
+                        mimeType = 'image/jpeg';
                     }
-
+                    
+                    if (stripImageMetadata) {
+                        removeMetadataTags(imgBuffer);
+                    }
+                    
                     if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg') ) {
                         const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
@@ -357,7 +367,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
             if (!resp.ok) {
                 if ( resp.status == 401 && url.startsWith('http:') ) {
                     console.warn(`HTTP error: ${resp.status} ${resp.statusText} (try with https)`);
-                    return await fetchEmbedUrlCard(url.replace('http:', 'https:'));
+                    return await fetchEmbedUrlCard(url.replace('http:', 'https:'), stripImageMetadata);
                 }
                 throw new Error(`HTTP error: ${resp.status} ${resp.statusText}`);
             }
@@ -401,6 +411,10 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                         mimeType = 'image/jpeg';
                     }
 
+                    if (stripImageMetadata) {
+                        removeMetadataTags(imgBuffer);
+                    }
+
                     if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg')) {
                         const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
@@ -439,6 +453,58 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
         external: card,
     };
 }
+
+/**
+ * Strips metadata tags from an image buffer without recompressing the image.
+ * @param {ArrayBuffer | Buffer} imgBuffer - The image buffer.
+ * @returns {Promise<ArrayBuffer>} - A promise that resolves to the processed image buffer with metadata removed.
+ */
+async function removeMetadataTags(
+    imgBuffer: ArrayBuffer | Buffer
+  ): Promise<ArrayBuffer> {
+    // Convert ArrayBuffer to Buffer for compatibility with file system operations.
+    const buffer =
+      imgBuffer instanceof ArrayBuffer ? Buffer.from(imgBuffer) : imgBuffer;
+  
+    // Define a temporary file path in the OS temp directory.
+    const tempFilePath = path.join(tmpdir(), `temp-image-${randomUUID()}.jpg`);
+  
+    try {
+      // Write the buffer to a temporary file.
+      await fs.writeFile(tempFilePath, buffer);
+  
+      // Read and log metadata before removal.
+      const metadataBefore = await exiftool.read(tempFilePath);
+  
+      // Remove all metadata tags.
+      await exiftool.write(tempFilePath, {}, {
+            writeArgs: ["-all=", "-overwrite_original"]
+      });
+  
+      // Read metadata again after removal.
+      const metadataAfter = await exiftool.read(tempFilePath);
+  
+      // Calculate and log removed tags.
+      const removedTags = Object.keys(metadataBefore).filter(
+        (tag) => !(tag in metadataAfter)
+      );
+      console.log(`Total metadata tags removed: ${removedTags.length}`);
+  
+      // Read the modified file back into a buffer.
+      const strippedBuffer = await fs.readFile(tempFilePath);
+      return strippedBuffer.buffer; // Return as ArrayBuffer.
+    } catch (error: any) {
+      console.error(`Error removing metadata: ${error.message}`);
+      return imgBuffer;
+    } finally {
+      // Ensure the temporary file is deleted to free up space.
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (unlinkError: any) {
+        console.warn(`Failed to delete temporary file: ${unlinkError.message}`);
+      }
+    }
+  }
 
 async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
     let quality = 90; // Start at 90% quality
@@ -529,6 +595,11 @@ async function main() {
             description: "Number of times to retry video uploads when error JOB_STATE_FAILED encountered",
             default: process.env.VIDEO_UPLOAD_RETRIES ? parseInt(process.env.VIDEO_UPLOAD_RETRIES) : 1,
         })
+        .option('strip-image-metadata', {
+            type: 'boolean',
+            description: 'Strip metadata from images before uploading',
+            default: process.env.STRIP_IMAGE_METADATA === '1',
+        })
         .help()
         .argv;
 
@@ -545,6 +616,7 @@ async function main() {
     console.log(`Bluesky Username is ${argv.blueskyUsername}`);
     console.log(`Ignore video errors? ${argv.ignoreVideoErrors}`);
     console.log(`Video upload retries: ${argv.videoUploadRetries}`);
+    console.log(`Strip Embed Image Metadata is ${argv.stripImageMetadata}`);
 
     const tweets = getTweets(argv.archiveFolder);
   
@@ -688,6 +760,10 @@ async function main() {
                                 mimeType = 'image/jpeg';
                             }
 
+                            if (argv.stripImageMetadata) {
+                                removeMetadataTags(imageBuffer);
+                            }
+
                             if (!argv.simulate) {
                                 const blobRecord = await rateLimitedAgent.uploadBlob(imageBuffer, {
                                     encoding: mimeType
@@ -827,7 +903,7 @@ async function main() {
                     for (const urlEntity of tweet.entities.urls) {
                         if (!urlEntity.expanded_url.startsWith('https://twitter.com') && !urlEntity.expanded_url.startsWith('https://x.com')) {
                             try {
-                                externalEmbed = await fetchEmbedUrlCard(urlEntity.expanded_url);
+                                externalEmbed = await fetchEmbedUrlCard(urlEntity.expanded_url, argv.stripImageMetadata);
                             }
                             catch (error: any) {
                                 console.warn(`Error fetching embed URL card: ${error.message}`);
@@ -910,6 +986,7 @@ async function main() {
         }finally {
             // always update the mapping file
             saveCache(sortedTweets);
+            exiftool.end();
         }
     }
 

@@ -62,6 +62,7 @@ Additionally you can set these environment variables to customize behavior:
 - `API_DELAY` = Delay between Bluesky API calls in milliseconds
 - `IGNORE_VIDEO_ERRORS` = if set to "1" continue processing tweets when a video submission fails
 - `VIDEO_UPLOAD_RETRIES` = set to the number of times to attempt to upload a video if JOB_STATE_FAILED encountered
+- `STRIP_IMAGE_METADATA` = if set to "1" will strip EXIF metadata from images before uploading them to Bluesky
 
 **Example of a `.env` file:**
 
@@ -118,6 +119,9 @@ These arguments are optional and help customize the import:
 
 - `--video-upload-retries` - Number of times to retry uploading videos if JOB_STATE_FAILED encountered.
     Example: `--video-upload-retries 5`
+
+- `--strip-image-metadata` - Strip EXIF metadata from images before they're uploaded to Bluesky
+    Example: `--strip-image-metadata`
 
 **Examples when running on Windows**
 
