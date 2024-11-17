@@ -1,0 +1,10 @@
+{
+  "name": "Basic Node.js",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "node",
+
+
+	"mounts": [
+		"source=E:\\Downloads\\sqldbawithbeard-twitter-2024-11-12,target=/workspaces/twitter-to-bluesky/data,type=bind,consistency=cached"
+	]
+}
