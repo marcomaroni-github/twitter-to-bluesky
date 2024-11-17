@@ -529,8 +529,15 @@ async function main() {
             description: "Number of times to retry video uploads when error JOB_STATE_FAILED encountered",
             default: process.env.VIDEO_UPLOAD_RETRIES ? parseInt(process.env.VIDEO_UPLOAD_RETRIES) : 1,
         })
+        .option('mentions-to-ignore', {
+            type: 'array',
+            description: 'List of Twitter handles whose mentions should be ignored in the tweets',
+            default: process.env.MENTIONS_TO_IGNORE?.split(',') || [],
+        })
         .help()
         .argv;
+
+    const mentionsToIgnore = (argv.mentionsToIgnore as string[]).map(handle => handle.toLowerCase());
 
     let minDate = argv.minDate ? new Date(argv.minDate) : undefined;
     let maxDate = argv.maxDate ? new Date(argv.maxDate) : undefined;
@@ -591,6 +598,14 @@ async function main() {
                 console.log(`Parse tweet id '${tweet.id}'`);
                 console.log(` Created at ${tweet_createdAt}`);
                 console.log(` Full text '${tweet.full_text}'`);
+
+                if (tweet.entities?.user_mentions) {
+                    const mentionedHandles = tweet.entities.user_mentions.map(mention => mention.screen_name.toLowerCase());
+                    if (mentionsToIgnore.some(ignoreHandle => mentionedHandles.includes(ignoreHandle))) {
+                        console.log(`Discarded (contains mention to ignored handle)`);
+                        continue;
+                    }
+                }
 
                 if (argv.disableImportReply && tweet.in_reply_to_screen_name) {
                     console.log("Discarded (reply)");

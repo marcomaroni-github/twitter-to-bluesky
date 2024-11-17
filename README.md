@@ -62,6 +62,7 @@ Additionally you can set these environment variables to customize behavior:
 - `API_DELAY` = Delay between Bluesky API calls in milliseconds
 - `IGNORE_VIDEO_ERRORS` = if set to "1" continue processing tweets when a video submission fails
 - `VIDEO_UPLOAD_RETRIES` = set to the number of times to attempt to upload a video if JOB_STATE_FAILED encountered
+- `MENTIONS_TO_IGNORE` = one or more x/twitter handles without @, comma-separated, case-insensitive. Mentions to these handles will cause tweets to be skipped (e.g., 'ignoreduser1,ignoreduser2').
 
 **Example of a `.env` file:**
 
@@ -118,6 +119,9 @@ These arguments are optional and help customize the import:
 
 - `--video-upload-retries` - Number of times to retry uploading videos if JOB_STATE_FAILED encountered.
     Example: `--video-upload-retries 5`
+
+- `--mentions-to-ignore <handles>` - A list of Twitter handles (without @) whose mentions will be ignored during the import. Mentions to these handles will cause the tweets to be skipped.
+  Example: `--mentions-to-ignore ignoreduser1 ignoreduser2`
 
 **Examples when running on Windows**
 
