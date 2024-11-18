@@ -526,8 +526,13 @@ async function main() {
         })
         .option('video-upload-retries', {
             type: 'number',
-            description: "Number of times to retry video uploads when error JOB_STATE_FAILED encountered",
+            description: 'Number of times to retry video uploads when error JOB_STATE_FAILED encountered',
             default: process.env.VIDEO_UPLOAD_RETRIES ? parseInt(process.env.VIDEO_UPLOAD_RETRIES) : 1,
+        })
+        .option('ignore-tweet-ids', {
+            type: 'array',
+            description: 'Tweet IDs to ignore in the import',
+            default: process.env.IGNORE_TWEET_IDS?.split(',')
         })
         .help()
         .argv;
@@ -574,6 +579,9 @@ async function main() {
                 const { tweet, bsky } = currentData;
                 const tweetDate = new Date(tweet.created_at);
                 const tweet_createdAt = tweetDate.toISOString();
+
+                //skip manually Tweets by ID
+                if(argv.ignoreTweetIds.includes(tweet.id)) continue;
 
                 //this cheks assume that the array is sorted by date (first the oldest)
                 if (minDate != undefined && tweetDate < minDate)
