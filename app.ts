@@ -14,7 +14,6 @@ import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
-import { time } from 'console';
 
 let fetch: any;
 (async () => {
@@ -580,8 +579,9 @@ async function main() {
                 const tweetDate = new Date(tweet.created_at);
                 const tweet_createdAt = tweetDate.toISOString();
 
-                //skip manually Tweets by ID
-                if(argv.ignoreTweetIds.includes(tweet.id)) continue;
+                //skip tweets by ID
+                if(argv.ignoreTweetIds.includes(tweet.id))
+                    continue;
 
                 //this cheks assume that the array is sorted by date (first the oldest)
                 if (minDate != undefined && tweetDate < minDate)
@@ -593,8 +593,6 @@ async function main() {
                     // already imported
                     continue;
                 }
-                // if (tweet.id != "1237000612639846402")
-                //     continue;
 
                 console.log(`Parse tweet id '${tweet.id}'`);
                 console.log(` Created at ${tweet_createdAt}`);
