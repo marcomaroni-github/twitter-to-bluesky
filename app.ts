@@ -14,7 +14,6 @@ import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
-import { time } from 'console';
 
 let fetch: any;
 (async () => {
@@ -526,8 +525,13 @@ async function main() {
         })
         .option('video-upload-retries', {
             type: 'number',
-            description: "Number of times to retry video uploads when error JOB_STATE_FAILED encountered",
+            description: 'Number of times to retry video uploads when error JOB_STATE_FAILED encountered',
             default: process.env.VIDEO_UPLOAD_RETRIES ? parseInt(process.env.VIDEO_UPLOAD_RETRIES) : 1,
+        })
+        .option('ignore-tweet-ids', {
+            type: 'array',
+            description: 'Tweet IDs to ignore in the import',
+            default: process.env.IGNORE_TWEET_IDS?.split(',')
         })
         .help()
         .argv;
@@ -575,6 +579,10 @@ async function main() {
                 const tweetDate = new Date(tweet.created_at);
                 const tweet_createdAt = tweetDate.toISOString();
 
+                //skip tweets by ID
+                if(argv.ignoreTweetIds.includes(tweet.id))
+                    continue;
+
                 //this cheks assume that the array is sorted by date (first the oldest)
                 if (minDate != undefined && tweetDate < minDate)
                     continue;
@@ -585,8 +593,6 @@ async function main() {
                     // already imported
                     continue;
                 }
-                // if (tweet.id != "1237000612639846402")
-                //     continue;
 
                 console.log(`Parse tweet id '${tweet.id}'`);
                 console.log(` Created at ${tweet_createdAt}`);
