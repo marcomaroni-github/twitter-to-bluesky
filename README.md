@@ -149,6 +149,11 @@ In this case, you may need to change the command slightly. Instead of `npm run s
 node app.js --archive-folder ~/twitter-archive --bluesky-username test.bsky.social --bluesky-password passwd123 --twitter-handles sampleuser1
 ```
 
+> Imported tweets appear as recent posts on your BlueSky timeline
+
+Some of the posts may show up as recent posts on your timeline during import process. This seems to be a bug with how BlueSky handles the
+recently imported tweets. They don't show up in other people's timelines. No need to worry about this. See #97.
+
 > You get an error like "XRPCError: missing jobId" and your Twitter account has videos
 
 See [issue #94](https://github.com/marcomaroni-github/twitter-to-bluesky/issues/94) for more details.
