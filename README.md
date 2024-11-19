@@ -151,8 +151,8 @@ node app.js --archive-folder ~/twitter-archive --bluesky-username test.bsky.soci
 
 > Imported tweets appear as recent posts on your BlueSky timeline
 
-Some of the posts may show up as recent posts on your timeline during import process. This seems to be a bug with how BlueSky handles the
-recently imported tweets. They don't show up in other people's timelines. No need to worry about this. See #97.
+Some of the tweets may show up as recent posts on your BlueSky timeline during the import process. This seems to be a bug with how BlueSky handles the
+recently imported tweets. They don't show up in other people's timelines, and their date gets corrected in a couple of minutes. No need to worry about this. Issue #97.
 
 > You get an error like "XRPCError: missing jobId" and your Twitter account has videos
 
