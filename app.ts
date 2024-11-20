@@ -768,6 +768,7 @@ async function main() {
                                 const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
                                 if (jobStatus.error) {
                                     console.warn(` Video job status: '${jobStatus.error}'. Video will be posted as a link`);
+                                    continue;
                                 }
                                 console.log(" JobId:", jobStatus.jobId);
                                 if (jobStatus.jobId || !argv.ignoreVideoErrors) {
