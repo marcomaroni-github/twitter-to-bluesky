@@ -710,7 +710,7 @@ async function main() {
                             }
                         }
 
-                        if (media?.type === "video") {
+                        if (media?.type === "video" || media?.type === "animated_gif") {
 
                             if (tweet.full_text.includes(media?.url)) {
                                 tweet.full_text = tweet.full_text.replace(media?.url, '').replace(/\s\s+/g, ' ').trim();
