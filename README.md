@@ -16,6 +16,7 @@ They use the official archive export file format from X/Twitter, this utility re
 
 - Nodejs >= 20.12x
 - The archive of your tweets from the X/Twitter, unzipped in your local disk.
+- A Bluesky account, with verified e-mail (otherwise videos will not upload).
 
 ## Breaking changes from version < 0.10
 
