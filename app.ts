@@ -462,8 +462,9 @@ async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<B
     if (buffer.length > MAX_FILE_SIZE) {
         console.warn(`Could not reduce image size below 1MB for file: ${imageData}`);
     }
-
-    return buffer;
+    
+    // Convert SharedArrayBuffer to Buffer if necessary
+    return Buffer.from(buffer);
 }
 
 async function main() {
