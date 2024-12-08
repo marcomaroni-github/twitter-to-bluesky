@@ -329,7 +329,7 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
                     }
                     
                     if (stripImageMetadata) {
-                        removeMetadataTags(imgBuffer);
+                        removeMetadataTags(imgBuffer, mimeType);
                     }
                     
                     if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg') ) {
@@ -411,7 +411,7 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
                     }
 
                     if (stripImageMetadata) {
-                        removeMetadataTags(imgBuffer);
+                        removeMetadataTags(imgBuffer, mimeType);
                     }
 
                     if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg')) {
@@ -459,50 +459,108 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
  * @returns {Promise<ArrayBuffer>} - A promise that resolves to the processed image buffer with metadata removed.
  */
 async function removeMetadataTags(
-    imgBuffer: ArrayBuffer | Buffer
-  ): Promise<ArrayBuffer> {
-    // Convert ArrayBuffer to Buffer for compatibility with file system operations.
-    const buffer =
-      imgBuffer instanceof ArrayBuffer ? Buffer.from(imgBuffer) : imgBuffer;
+imgBuffer: ArrayBuffer | Buffer, mimeType: string  ): Promise<ArrayBuffer> {
+    const buffer = imgBuffer instanceof ArrayBuffer ? Buffer.from(imgBuffer) : imgBuffer;
+
+    const extension = getExtensionFromMimeType(mimeType);
+    if (extension === "unknown") {
+      console.log(`Unsupported MIME type "${mimeType}". Returning the original buffer.`);
+      return imgBuffer;
+    }
   
-    // Define a temporary file path in the OS temp directory.
-    const tempFilePath = path.join(tmpdir(), `temp-image-${randomUUID()}.jpg`);
+    const tempFilePath = path.join(tmpdir(), `temp-image-${randomUUID()}.${extension}`);
+    const defaultTags = new Set([
+      "SourceFile", "errors", "ExifToolVersion", "FileName", "Directory",
+      "FileSize", "FileModifyDate", "FileAccessDate", "FileCreateDate",
+      "FilePermissions", "FileType", "FileTypeExtension", "MIMEType",
+      "ImageWidth", "ImageHeight", "EncodingProcess", "BitsPerSample",
+      "ColorComponents", "YCbCrSubSampling", "ImageSize", "Megapixels", "warnings",
+      "VP8Version", "HorizontalScale", "VerticalScale"
+    ]);
+  
+    const additionalTags = ["JFIFVersion", "ResolutionUnit", "XResolution", "YResolution",
+      "ColorSpace", "Rotation"
+    ];
+  
+    const allowedTags = new Set([...defaultTags, ...additionalTags]);
   
     try {
-      // Write the buffer to a temporary file.
       await fs.writeFile(tempFilePath, buffer);
-  
-      // Read and log metadata before removal.
+ 
       const metadataBefore = await exiftool.read(tempFilePath);
+      const metadataBeforeKeys = Object.keys(metadataBefore); 
   
+      // Check if all tags are within the allowed list.
+      const isSubset = metadataBeforeKeys.every(tag => allowedTags.has(tag));
+      if (isSubset) {
+        console.log("All metadata tags are within the allowed tags. Returning the original buffer.");
+        return imgBuffer;
+      }
+  
+      console.log(`Before metadata tags: ${metadataBeforeKeys.join(", ")}`);
+
       // Remove all metadata tags.
+      const tagCopyArgs = additionalTags.map(tag => `-${tag}<${tag}`);
+      
       await exiftool.write(tempFilePath, {}, {
-            writeArgs: ["-all=", "-overwrite_original"]
+        writeArgs: [
+          "-all=", // Remove all metadata.
+          "-tagsFromFile @",
+          ...tagCopyArgs,
+          "-overwrite_original" // Overwrite the original file.
+        ]
       });
   
-      // Read metadata again after removal.
       const metadataAfter = await exiftool.read(tempFilePath);
+      const removedTags = metadataBeforeKeys.filter(tag => !(tag in metadataAfter));
   
-      // Calculate and log removed tags.
-      const removedTags = Object.keys(metadataBefore).filter(
-        (tag) => !(tag in metadataAfter)
-      );
-      console.log(`Total metadata tags removed: ${removedTags.length}`);
+      console.log(`Removed ${removedTags.length} metadata tags: ${removedTags.join(", ")}`);
   
-      // Read the modified file back into a buffer.
       const strippedBuffer = await fs.readFile(tempFilePath);
-      return strippedBuffer.buffer; // Return as ArrayBuffer.
-    } catch (error: any) {
-      console.error(`Error removing metadata: ${error.message}`);
+      return strippedBuffer.buffer;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(`Error removing metadata: ${error.message}`);
+      } else {
+        console.error("An unknown error occurred while removing metadata.");
+      }
       return imgBuffer;
     } finally {
-      // Ensure the temporary file is deleted to free up space.
+      // Ensure the temporary file is deleted.
       try {
         await fs.unlink(tempFilePath);
-      } catch (unlinkError: any) {
-        console.warn(`Failed to delete temporary file: ${unlinkError.message}`);
+      } catch (unlinkError: unknown) {
+        if (unlinkError instanceof Error) {
+          console.warn(`Failed to delete temporary file: ${unlinkError.message}`);
+        } else {
+          console.warn("An unknown error occurred while deleting the temporary file.");
+        }
       }
     }
+  }
+
+
+  /**
+ * Extracts the group name from a tag name.
+ * 
+ * @param tag - The tag name (e.g., "EXIF:DateTimeOriginal").
+ * @returns The group name (e.g., "EXIF").
+ */
+function getTagGroup(tag: string): string {
+    const parts = tag.split(":");
+    return parts.length > 1 ? parts[0] : "Unknown";
+  }
+  
+
+  
+// Helper function to map MIME types to file extensions
+function getExtensionFromMimeType(mimeType: string): string {
+    const mimeToExt: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+    return mimeToExt[mimeType] || "unknown"; // Default to "unknown" if not found
   }
 
 async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
@@ -764,10 +822,6 @@ async function main() {
                             if (mimeType === 'image/png' || mimeType === 'image/webp' || mimeType === 'image/jpeg' && imageBuffer.length > MAX_FILE_SIZE) {
                                 imageBuffer = await recompressImageIfNeeded(mediaFilename);
                                 mimeType = 'image/jpeg';
-                            }
-
-                            if (argv.stripImageMetadata) {
-                                removeMetadataTags(imageBuffer);
                             }
 
                             if (!argv.simulate) {
