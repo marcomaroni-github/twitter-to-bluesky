@@ -459,62 +459,104 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
  * @returns {Promise<ArrayBuffer>} - A promise that resolves to the processed image buffer with metadata removed.
  */
 async function removeMetadataTags(
-imgBuffer: ArrayBuffer | Buffer, mimeType: string  ): Promise<ArrayBuffer> {
-    const buffer = imgBuffer instanceof ArrayBuffer ? Buffer.from(imgBuffer) : imgBuffer;
-
+    imgBuffer: ArrayBuffer | Buffer,
+    mimeType: string
+  ): Promise<ArrayBuffer> {
+    const buffer =
+      imgBuffer instanceof ArrayBuffer ? Buffer.from(imgBuffer) : imgBuffer;
+  
     const extension = getExtensionFromMimeType(mimeType);
     if (extension === "unknown") {
-      console.log(`Unsupported MIME type "${mimeType}". Returning the original buffer.`);
+      console.log(
+        `Unsupported MIME type "${mimeType}". Returning the original buffer.`
+      );
       return imgBuffer;
     }
   
-    const tempFilePath = path.join(tmpdir(), `temp-image-${randomUUID()}.${extension}`);
+    const tempFilePath = path.join(
+      tmpdir(),
+      `temp-image-${randomUUID()}.${extension}`
+    );
     const defaultTags = new Set([
-      "SourceFile", "errors", "ExifToolVersion", "FileName", "Directory",
-      "FileSize", "FileModifyDate", "FileAccessDate", "FileCreateDate",
-      "FilePermissions", "FileType", "FileTypeExtension", "MIMEType",
-      "ImageWidth", "ImageHeight", "EncodingProcess", "BitsPerSample",
-      "ColorComponents", "YCbCrSubSampling", "ImageSize", "Megapixels", "warnings",
-      "VP8Version", "HorizontalScale", "VerticalScale"
+      "SourceFile",
+      "errors",
+      "ExifToolVersion",
+      "FileName",
+      "Directory",
+      "FileSize",
+      "FileModifyDate",
+      "FileAccessDate",
+      "FileCreateDate",
+      "FilePermissions",
+      "FileType",
+      "FileTypeExtension",
+      "MIMEType",
+      "ImageWidth",
+      "ImageHeight",
+      "EncodingProcess",
+      "BitsPerSample",
+      "ColorComponents",
+      "YCbCrSubSampling",
+      "ImageSize",
+      "Megapixels",
+      "warnings",
+      "VP8Version",
+      "HorizontalScale",
+      "VerticalScale",
     ]);
   
-    const additionalTags = ["JFIFVersion", "ResolutionUnit", "XResolution", "YResolution",
-      "ColorSpace", "Rotation"
+    const additionalTags = [
+      "JFIFVersion",
+      "ResolutionUnit",
+      "XResolution",
+      "YResolution",
+      "ColorSpace",
+      "Rotation",
     ];
   
     const allowedTags = new Set([...defaultTags, ...additionalTags]);
   
     try {
       await fs.writeFile(tempFilePath, buffer);
- 
+  
       const metadataBefore = await exiftool.read(tempFilePath);
-      const metadataBeforeKeys = Object.keys(metadataBefore); 
+      const metadataBeforeKeys = Object.keys(metadataBefore);
   
       // Check if all tags are within the allowed list.
-      const isSubset = metadataBeforeKeys.every(tag => allowedTags.has(tag));
+      const isSubset = metadataBeforeKeys.every((tag) => allowedTags.has(tag));
       if (isSubset) {
-        console.log("All metadata tags are within the allowed tags. Returning the original buffer.");
+        console.log(
+          "All metadata tags are within the allowed tags. Returning the original buffer."
+        );
         return imgBuffer;
       }
   
       console.log(`Before metadata tags: ${metadataBeforeKeys.join(", ")}`);
-
+  
       // Remove all metadata tags.
-      const tagCopyArgs = additionalTags.map(tag => `-${tag}<${tag}`);
-      
-      await exiftool.write(tempFilePath, {}, {
-        writeArgs: [
-          "-all=", // Remove all metadata.
-          "-tagsFromFile @",
-          ...tagCopyArgs,
-          "-overwrite_original" // Overwrite the original file.
-        ]
-      });
+      const tagCopyArgs = additionalTags.map((tag) => `-${tag}<${tag}`);
+  
+      await exiftool.write(
+        tempFilePath,
+        {},
+        {
+          writeArgs: [
+            "-all=", // Remove all metadata.
+            "-tagsFromFile @",
+            ...tagCopyArgs,
+            "-overwrite_original", // Overwrite the original file.
+          ],
+        }
+      );
   
       const metadataAfter = await exiftool.read(tempFilePath);
-      const removedTags = metadataBeforeKeys.filter(tag => !(tag in metadataAfter));
+      const removedTags = metadataBeforeKeys.filter(
+        (tag) => !(tag in metadataAfter)
+      );
   
-      console.log(`Removed ${removedTags.length} metadata tags: ${removedTags.join(", ")}`);
+      console.log(
+        `Removed ${removedTags.length} metadata tags: ${removedTags.join(", ")}`
+      );
   
       const strippedBuffer = await fs.readFile(tempFilePath);
       return strippedBuffer.buffer;
@@ -533,28 +575,27 @@ imgBuffer: ArrayBuffer | Buffer, mimeType: string  ): Promise<ArrayBuffer> {
         if (unlinkError instanceof Error) {
           console.warn(`Failed to delete temporary file: ${unlinkError.message}`);
         } else {
-          console.warn("An unknown error occurred while deleting the temporary file.");
+          console.warn(
+            "An unknown error occurred while deleting the temporary file."
+          );
         }
       }
     }
   }
-
-
+  
   /**
- * Extracts the group name from a tag name.
- * 
- * @param tag - The tag name (e.g., "EXIF:DateTimeOriginal").
- * @returns The group name (e.g., "EXIF").
- */
-function getTagGroup(tag: string): string {
+   * Extracts the group name from a tag name.
+   *
+   * @param tag - The tag name (e.g., "EXIF:DateTimeOriginal").
+   * @returns The group name (e.g., "EXIF").
+   */
+  function getTagGroup(tag: string): string {
     const parts = tag.split(":");
     return parts.length > 1 ? parts[0] : "Unknown";
   }
   
-
-  
-// Helper function to map MIME types to file extensions
-function getExtensionFromMimeType(mimeType: string): string {
+  // Helper function to map MIME types to file extensions
+  function getExtensionFromMimeType(mimeType: string): string {
     const mimeToExt: Record<string, string> = {
       "image/jpeg": "jpg",
       "image/png": "png",
