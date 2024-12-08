@@ -840,7 +840,7 @@ async function main() {
                             }
                         }
 
-                        if (media?.type === "video") {
+                        if (media?.type === "video" || media?.type === "animated_gif") {
 
                             if (tweet.full_text.includes(media?.url)) {
                                 tweet.full_text = tweet.full_text.replace(media?.url, '').replace(/\s\s+/g, ' ').trim();
@@ -897,7 +897,7 @@ async function main() {
                                 
                                 const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
                                 if (jobStatus.error) {
-                                    console.warn(` Video job status: '${jobStatus.error}'. Video will be posted as a link`);
+                                    console.warn(` Video job status: '${jobStatus.error}'. Video will not be posted.`);
                                 }
                                 console.log(" JobId:", jobStatus.jobId);
                                 if (jobStatus.jobId || !argv.ignoreVideoErrors) {

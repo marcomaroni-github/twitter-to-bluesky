@@ -16,6 +16,7 @@ They use the official archive export file format from X/Twitter, this utility re
 
 - Nodejs >= 20.12x
 - The archive of your tweets from the X/Twitter, unzipped in your local disk.
+- A Bluesky account, with verified e-mail (otherwise videos will not upload).
 
 ## Breaking changes from version < 0.10
 
@@ -25,8 +26,7 @@ They use the official archive export file format from X/Twitter, this utility re
 
 Before everything else, you need to request your Twitter archive. You can do this by following the instructions on the official Twitter support page: [Requesting your Twitter archive](https://help.twitter.com/en/managing-your-account/how-to-download-your-twitter-archive). This process may take a few days, and you will receive an email with a link to download the archive once it's ready.
 
-The program requires the Node.js runtime to be explicitly installed on your machine. You can check if you have it installed by running `node -v` in your terminal/console application. If you don't have it installed,
-you can download and install it from the official website: [Node.js](https://nodejs.org/)
+The program requires the Node.js runtime to be explicitly installed on your machine. You can check if you have it installed by running `node -v` in your terminal/console application. If you don't have it installed, you can download and install it from the official website: [Node.js](https://nodejs.org/)
 
 Once you have Node.js installed, and if you don't know what `git clone` means (don't go look it up, it's not important), you can download the source code as a zip file from this [GitHub repository](https://github.com/marcomaroni-github/twitter-to-bluesky/releases) and extract it to a folder on your computer. Pick the latest release.
 
@@ -141,6 +141,32 @@ Assuming you stored the Twitter archive in your home folder and you want to impo
 
 ``` bash
 npm run start -- -- --archive-folder ~/twitter-archive --bluesky-username test.bsky.social --bluesky-password pwd123 --twitter-handles sampleuser1
+```
+### Common issues and resolutions
+
+> No matter what you seem to do, you get the error "Missing required arguments: archive-folder, bluesky-username, bluesky-password"
+
+See [issue #77](https://github.com/marcomaroni-github/twitter-to-bluesky/issues/77) for more details.
+
+In this case, you may need to change the command slightly. Instead of `npm run start -- -- [args]`, you would use `node app.js [args]` instead. For example:
+
+``` bash
+node app.js --archive-folder ~/twitter-archive --bluesky-username test.bsky.social --bluesky-password passwd123 --twitter-handles sampleuser1
+```
+
+> Imported tweets appear as recent posts on your BlueSky timeline
+
+Some of the tweets may show up as recent posts on your BlueSky timeline during the import process. This seems to be a bug with how BlueSky handles the
+recently imported tweets. They don't show up in other people's timelines, and their date gets corrected in a couple of minutes. No need to worry about this. Issue #97.
+
+> You get an error like "XRPCError: missing jobId" and your Twitter account has videos
+
+See [issue #94](https://github.com/marcomaroni-github/twitter-to-bluesky/issues/94) for more details.
+
+In this case, you may have videos that exceed the 60 second limit on Bluesky or have other video upload issues. You would need to add the arguments `--ignore-video-errors` and `--video-upload-retries` to import the remaining tweets, bypassing the offending videos. Example:
+
+``` bash
+npm run start -- -- --archive-folder ~/twitter-archive --bluesky-username test.bsky.social --bluesky-password pwd123 --twitter-handles sampleuser1 --ignore-video-errors --video-upload-retries 5
 ```
 
 ### Dev Container
