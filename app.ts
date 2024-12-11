@@ -9,6 +9,11 @@ import sharp from 'sharp';
 import URI from 'urijs';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { exiftool } from 'exiftool-vendored';
+import { Buffer } from 'buffer';
+import { tmpdir } from 'os';
+import { randomUUID } from 'crypto';
+import fs from 'fs/promises';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
@@ -262,7 +267,7 @@ function saveCache(sortedTweets) {
     FS.writeFileSync(TWEETS_MAPPING_FILE_NAME, JSON.stringify(sortedTweets, null, 4));
 }
 
-async function fetchEmbedUrlCard(url: string): Promise<any> {
+async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Promise<any> {
     let card = {
         uri: url,
         title: "",
@@ -320,8 +325,13 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
 
                     if (imgBuffer.byteLength > MAX_FILE_SIZE) {
                         imgBuffer = await recompressImageIfNeeded(imgBuffer);
+                        mimeType = 'image/jpeg';
                     }
-
+                    
+                    if (stripImageMetadata) {
+                        removeMetadataTags(imgBuffer, mimeType);
+                    }
+                    
                     if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg') ) {
                         const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
@@ -356,7 +366,7 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
             if (!resp.ok) {
                 if ( resp.status == 401 && url.startsWith('http:') ) {
                     console.warn(`HTTP error: ${resp.status} ${resp.statusText} (try with https)`);
-                    return await fetchEmbedUrlCard(url.replace('http:', 'https:'));
+                    return await fetchEmbedUrlCard(url.replace('http:', 'https:'), stripImageMetadata);
                 }
                 throw new Error(`HTTP error: ${resp.status} ${resp.statusText}`);
             }
@@ -400,6 +410,10 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
                         mimeType = 'image/jpeg';
                     }
 
+                    if (stripImageMetadata) {
+                        removeMetadataTags(imgBuffer, mimeType);
+                    }
+
                     if ( mimeType.startsWith('image/') && !mimeType.startsWith('image/svg')) {
                         const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
                             encoding: mimeType
@@ -438,6 +452,157 @@ async function fetchEmbedUrlCard(url: string): Promise<any> {
         external: card,
     };
 }
+
+/**
+ * Strips metadata tags from an image buffer without recompressing the image.
+ * @param {ArrayBuffer | Buffer} imgBuffer - The image buffer.
+ * @returns {Promise<ArrayBuffer>} - A promise that resolves to the processed image buffer with metadata removed.
+ */
+async function removeMetadataTags(
+    imgBuffer: ArrayBuffer | Buffer,
+    mimeType: string
+  ): Promise<ArrayBuffer> {
+    const buffer =
+      imgBuffer instanceof ArrayBuffer ? Buffer.from(imgBuffer) : imgBuffer;
+  
+    const extension = getExtensionFromMimeType(mimeType);
+    if (extension === "unknown") {
+      console.log(
+        `Unsupported MIME type "${mimeType}". Returning the original buffer.`
+      );
+      return imgBuffer;
+    }
+  
+    const tempFilePath = path.join(
+      tmpdir(),
+      `temp-image-${randomUUID()}.${extension}`
+    );
+    const defaultTags = new Set([
+      "SourceFile",
+      "errors",
+      "ExifToolVersion",
+      "FileName",
+      "Directory",
+      "FileSize",
+      "FileModifyDate",
+      "FileAccessDate",
+      "FileCreateDate",
+      "FilePermissions",
+      "FileType",
+      "FileTypeExtension",
+      "MIMEType",
+      "ImageWidth",
+      "ImageHeight",
+      "EncodingProcess",
+      "BitsPerSample",
+      "ColorComponents",
+      "YCbCrSubSampling",
+      "ImageSize",
+      "Megapixels",
+      "warnings",
+      "VP8Version",
+      "HorizontalScale",
+      "VerticalScale",
+    ]);
+  
+    const additionalTags = [
+      "JFIFVersion",
+      "ResolutionUnit",
+      "XResolution",
+      "YResolution",
+      "ColorSpace",
+      "Rotation",
+    ];
+  
+    const allowedTags = new Set([...defaultTags, ...additionalTags]);
+  
+    try {
+      await fs.writeFile(tempFilePath, buffer);
+  
+      const metadataBefore = await exiftool.read(tempFilePath);
+      const metadataBeforeKeys = Object.keys(metadataBefore);
+  
+      // Check if all tags are within the allowed list.
+      const isSubset = metadataBeforeKeys.every((tag) => allowedTags.has(tag));
+      if (isSubset) {
+        console.log(
+          "All metadata tags are within the allowed tags. Returning the original buffer."
+        );
+        return imgBuffer;
+      }
+  
+      console.log(`Before metadata tags: ${metadataBeforeKeys.join(", ")}`);
+  
+      // Remove all metadata tags.
+      const tagCopyArgs = additionalTags.map((tag) => `-${tag}<${tag}`);
+  
+      await exiftool.write(
+        tempFilePath,
+        {},
+        {
+          writeArgs: [
+            "-all=", // Remove all metadata.
+            "-tagsFromFile @",
+            ...tagCopyArgs,
+            "-overwrite_original", // Overwrite the original file.
+          ],
+        }
+      );
+  
+      const metadataAfter = await exiftool.read(tempFilePath);
+      const removedTags = metadataBeforeKeys.filter(
+        (tag) => !(tag in metadataAfter)
+      );
+  
+      console.log(
+        `Removed ${removedTags.length} metadata tags: ${removedTags.join(", ")}`
+      );
+  
+      const strippedBuffer = await fs.readFile(tempFilePath);
+      return strippedBuffer.buffer;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(`Error removing metadata: ${error.message}`);
+      } else {
+        console.error("An unknown error occurred while removing metadata.");
+      }
+      return imgBuffer;
+    } finally {
+      // Ensure the temporary file is deleted.
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (unlinkError: unknown) {
+        if (unlinkError instanceof Error) {
+          console.warn(`Failed to delete temporary file: ${unlinkError.message}`);
+        } else {
+          console.warn(
+            "An unknown error occurred while deleting the temporary file."
+          );
+        }
+      }
+    }
+  }
+  
+  /**
+   * Extracts the group name from a tag name.
+   *
+   * @param tag - The tag name (e.g., "EXIF:DateTimeOriginal").
+   * @returns The group name (e.g., "EXIF").
+   */
+  function getTagGroup(tag: string): string {
+    const parts = tag.split(":");
+    return parts.length > 1 ? parts[0] : "Unknown";
+  }
+  
+  // Helper function to map MIME types to file extensions
+  function getExtensionFromMimeType(mimeType: string): string {
+    const mimeToExt: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+    return mimeToExt[mimeType] || "unknown"; // Default to "unknown" if not found
+  }
 
 async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
     let quality = 90; // Start at 90% quality
@@ -533,6 +698,11 @@ async function main() {
             description: 'Tweet IDs to ignore in the import',
             default: process.env.IGNORE_TWEET_IDS?.split(',')
         })
+        .option('strip-image-metadata', {
+            type: 'boolean',
+            description: 'Strip metadata from images before uploading',
+            default: process.env.STRIP_IMAGE_METADATA === '1',
+        })
         .help()
         .argv;
 
@@ -549,6 +719,7 @@ async function main() {
     console.log(`Bluesky Username is ${argv.blueskyUsername}`);
     console.log(`Ignore video errors? ${argv.ignoreVideoErrors}`);
     console.log(`Video upload retries: ${argv.videoUploadRetries}`);
+    console.log(`Strip Embed Image Metadata is ${argv.stripImageMetadata}`);
 
     const tweets = getTweets(argv.archiveFolder);
   
@@ -833,7 +1004,7 @@ async function main() {
                     for (const urlEntity of tweet.entities.urls) {
                         if (!urlEntity.expanded_url.startsWith('https://twitter.com') && !urlEntity.expanded_url.startsWith('https://x.com')) {
                             try {
-                                externalEmbed = await fetchEmbedUrlCard(urlEntity.expanded_url);
+                                externalEmbed = await fetchEmbedUrlCard(urlEntity.expanded_url, argv.stripImageMetadata);
                             }
                             catch (error: any) {
                                 console.warn(`Error fetching embed URL card: ${error.message}`);
@@ -916,6 +1087,7 @@ async function main() {
         }finally {
             // always update the mapping file
             saveCache(sortedTweets);
+            exiftool.end();
         }
     }
 
