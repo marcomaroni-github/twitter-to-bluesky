@@ -909,6 +909,15 @@ async function main() {
                                 continue
                             }
     
+                            // Check video duration before attempting upload
+                            const videoDuration = parseFloat(media.video_info?.duration_millis || "0") / 1000;
+                            const MAX_VIDEO_DURATION = 60; // Bluesky's limit in seconds
+                            
+                            if (videoDuration > MAX_VIDEO_DURATION) {
+                                console.warn(` Video duration (${videoDuration.toFixed(2)} sec) exceeds Bluesky's ${MAX_VIDEO_DURATION}-second limit. Video will be skipped.`);
+                                continue;
+                            }
+
                             if (!argv.simulate) {
                                 const { data: serviceAuth } = await rateLimitedAgent.getServiceAuth(
                                     {
@@ -940,37 +949,47 @@ async function main() {
                                 const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
                                 if (jobStatus.error) {
                                     console.warn(` Video job status: '${jobStatus.error}'. Video will not be posted.`);
+                                    if (!argv.ignoreVideoErrors) {
+                                        throw new Error(`Video upload failed: ${jobStatus.error}`);
+                                    }
+                                    continue;
                                 }
                                 console.log(" JobId:", jobStatus.jobId);
-                                if (jobStatus.jobId || !argv.ignoreVideoErrors) {
-                                    let retries = 1;
-                                    while (retries <= argv.videoUploadRetries) {
-                                        console.log(` Upload video, attempt: ${retries}`);
-                                        let blob: BlobRef | undefined = jobStatus.blob;
+                                if (!jobStatus.jobId) {
+                                    console.warn(" Missing jobId in response. Video will not be posted.");
+                                    if (!argv.ignoreVideoErrors) {
+                                        throw new Error("Video upload failed: missing jobId");
+                                    }
+                                    continue;
+                                }
 
-                                        const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
+                                let retries = 1;
+                                while (retries <= argv.videoUploadRetries) {
+                                    console.log(` Upload video, attempt: ${retries}`);
+                                    let blob: BlobRef | undefined = jobStatus.blob;
 
-                                        while (!blob) {
-                                          const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
-                                            { jobId: jobStatus.jobId },
-                                          );
-                                          console.log("  Status:",
-                                            status.jobStatus.state,
-                                            status.jobStatus.progress || "",
-                                          );
-                                          if ("JOB_STATE_FAILED" === status.jobStatus.state) {
-                                              continue;
-                                          }
-                                          if (status.jobStatus.blob) {
-                                            blob = status.jobStatus.blob;
-                                          }
-                                          // wait a second
-                                          await new Promise((resolve) => setTimeout(resolve, 1000));
-                                        }
-                                        if (blob) {
-                                            embeddedVideo = blob;
-                                            break;
-                                        }
+                                    const videoAgent = new AtpAgent({ service: "https://video.bsky.app" });
+
+                                    while (!blob) {
+                                      const { data: status } = await videoAgent.app.bsky.video.getJobStatus(
+                                        { jobId: jobStatus.jobId },
+                                      );
+                                      console.log("  Status:",
+                                        status.jobStatus.state,
+                                        status.jobStatus.progress || "",
+                                      );
+                                      if ("JOB_STATE_FAILED" === status.jobStatus.state) {
+                                          continue;
+                                      }
+                                      if (status.jobStatus.blob) {
+                                        blob = status.jobStatus.blob;
+                                      }
+                                      // wait a second
+                                      await new Promise((resolve) => setTimeout(resolve, 1000));
+                                    }
+                                    if (blob) {
+                                        embeddedVideo = blob;
+                                        break;
                                     }
                                 }
                             }
