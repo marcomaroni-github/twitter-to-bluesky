@@ -320,7 +320,7 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
                             'Connection': 'keep-alive'
                         }, timeout: 25000})]);
                 if (imgResp.ok) {
-                    let imgBuffer = await imgResp.arrayBuffer();
+                    let imgBuffer = Buffer.from(await imgResp.arrayBuffer());
                     let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
 
                     if (imgBuffer.byteLength > MAX_FILE_SIZE) {
@@ -402,7 +402,7 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
                                 'Connection': 'keep-alive'
                         }, timeout: 25000})]);
                 if (imgResp.ok) {
-                    let imgBuffer = await imgResp.arrayBuffer();
+                    let imgBuffer = Buffer.from(await imgResp.arrayBuffer());
                     let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
 
                     if (imgBuffer.byteLength > MAX_FILE_SIZE) {
@@ -455,15 +455,14 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
 
 /**
  * Strips metadata tags from an image buffer without recompressing the image.
- * @param {ArrayBuffer | Buffer} imgBuffer - The image buffer.
- * @returns {Promise<ArrayBuffer>} - A promise that resolves to the processed image buffer with metadata removed.
+ * @param {Buffer} imgBuffer - The image buffer.
+ * @returns {Promise<Buffer>} - A promise that resolves to the processed image buffer with metadata removed.
  */
 async function removeMetadataTags(
-    imgBuffer: ArrayBuffer | Buffer,
+    imgBuffer: Buffer,
     mimeType: string
-  ): Promise<ArrayBuffer> {
-    const buffer =
-      imgBuffer instanceof ArrayBuffer ? Buffer.from(imgBuffer) : imgBuffer;
+  ): Promise<Buffer> {
+    const buffer = imgBuffer;
   
     const extension = getExtensionFromMimeType(mimeType);
     if (extension === "unknown") {
@@ -559,7 +558,7 @@ async function removeMetadataTags(
       );
   
       const strippedBuffer = await fs.readFile(tempFilePath);
-      return strippedBuffer.buffer;
+      return Buffer.from(strippedBuffer);
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error(`Error removing metadata: ${error.message}`);
@@ -582,7 +581,7 @@ async function removeMetadataTags(
       }
     }
   }
-  
+
   /**
    * Extracts the group name from a tag name.
    *
@@ -604,7 +603,7 @@ async function removeMetadataTags(
     return mimeToExt[mimeType] || "unknown"; // Default to "unknown" if not found
   }
 
-async function recompressImageIfNeeded(imageData: string|ArrayBuffer): Promise<Buffer> {
+async function recompressImageIfNeeded(imageData: string|Buffer): Promise<Buffer> {
     let quality = 90; // Start at 90% quality
     let image = sharp(imageData);
     const metadata = await image.metadata();
