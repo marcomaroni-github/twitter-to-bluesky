@@ -1,19 +1,19 @@
+import { Buffer } from 'buffer';
 import { load } from 'cheerio';
+import { randomUUID } from 'crypto';
 import * as dotenv from 'dotenv';
+import { exiftool } from 'exiftool-vendored';
 import { http, https } from 'follow-redirects';
 import FS from 'fs';
+import fs from 'fs/promises';
 import he from 'he';
+import { tmpdir } from 'os';
 import path from 'path';
 import process, { title } from 'process';
 import sharp from 'sharp';
 import URI from 'urijs';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { exiftool } from 'exiftool-vendored';
-import { Buffer } from 'buffer';
-import { tmpdir } from 'os';
-import { randomUUID } from 'crypto';
-import fs from 'fs/promises';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
 
@@ -30,6 +30,7 @@ oembetter.endpoints(oembetter.suggestedEndpoints);
 const TWEETS_MAPPING_FILE_NAME = 'tweets_mapping.json'; // store the imported tweets & bsky id mapping
 const MAX_FILE_SIZE = 1 * 1000 * 1000; // 1MiB
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
+const MAX_VIDEO_DURATION = 180; // Bluesky's limit in seconds
 
 dotenv.config();
 
@@ -910,7 +911,6 @@ async function main() {
     
                             // Check video duration before attempting upload
                             const videoDuration = parseFloat(media.video_info?.duration_millis || "0") / 1000;
-                            const MAX_VIDEO_DURATION = 60; // Bluesky's limit in seconds
                             
                             if (videoDuration > MAX_VIDEO_DURATION) {
                                 console.warn(` Video duration (${videoDuration.toFixed(2)} sec) exceeds Bluesky's ${MAX_VIDEO_DURATION}-second limit. Video will be skipped.`);
