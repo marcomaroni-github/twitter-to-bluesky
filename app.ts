@@ -277,6 +277,79 @@ async function fetchEmbedUrlCard(url: string, stripImageMetadata : boolean): Pro
     };
 
     try {
+        // Try cardyb service first with rate limit handling
+        const cardybUrl = `https://cardyb.bsky.app/v1/extract?url=${encodeURIComponent(url)}`;
+        let attempts = 0;
+        let cardybData;
+
+        while (attempts < 3) {
+            try {
+                const cardybResp = await fetch(cardybUrl);
+                
+                if (cardybResp.status === 429) {
+                    const retryAfter = cardybResp.headers.get('retry-after');
+                    const waitTime = (retryAfter ? parseInt(retryAfter) : 60) * 1000; // Convert to ms, default 60s
+                    console.log(`Cardyb rate limit hit, waiting ${waitTime/1000}s before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    attempts++;
+                    continue;
+                }
+
+                if (!cardybResp.ok) {
+                    throw new Error(`Cardyb HTTP error: ${cardybResp.status}`);
+                }
+
+                cardybData = await cardybResp.json();
+                break; // Success, exit the retry loop
+            } catch (error: any) {
+                attempts++;
+                if (attempts >= 3) {
+                    console.warn(`Cardyb service failed after ${attempts} attempts, falling back to direct fetch`);
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 2000 * attempts)); // Exponential backoff
+            }
+        }
+
+        if (cardybData && !cardybData.error) {
+            card.title = cardybData.title || card.title;
+            card.description = cardybData.description || card.description;
+
+            if (cardybData.image) {
+                const imgResp = await fetch(cardybData.image);
+                if (imgResp.ok) {
+                    let imgBuffer = await imgResp.arrayBuffer();
+                    let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+
+                    if (imgBuffer.byteLength > MAX_FILE_SIZE) {
+                        imgBuffer = await recompressImageIfNeeded(imgBuffer);
+                    }
+
+                    if (mimeType.startsWith('image/') && !mimeType.startsWith('image/svg')) {
+                        const blobRecord = await rateLimitedAgent.uploadBlob(imgBuffer, {
+                            encoding: mimeType
+                        });
+
+                        card.thumb = {
+                            $type: "blob",
+                            ref: blobRecord.data.blob.ref,
+                            mimeType: blobRecord.data.blob.mimeType,
+                            size: blobRecord.data.blob.size
+                        };
+                    }
+                }
+            }
+
+            // If we got data from cardyb, return it immediately
+            if (card.title || card.description) {
+                return {
+                    $type: "app.bsky.embed.external",
+                    external: card
+                };
+            }
+        }
+
+        // If cardyb fails, continue with existing oembed and direct fetch logic
         let oembedResult:any = null;
         try
         {
