@@ -4,7 +4,7 @@
   "description": "Import tweet archive to a Bluesky account",
   "main": "app.js",
   "engines": {
-    "node": ">=20.12.0"
+    "node": ">=22.14.0"
   },
   "scripts": {
     "start": "npx tsc && node app.js",
@@ -15,7 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "@atproto/api": "^0.16.1",
-    "cheerio": "^1.0.0",
+    "cheerio": "^1.1.2",
     "dotenv": "^16.4.5",
     "exiftool-vendored": "^29.0.0",
     "follow-redirects": "^1.15.6",
