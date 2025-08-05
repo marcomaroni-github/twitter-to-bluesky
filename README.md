@@ -55,6 +55,7 @@ Create an .env file in the project folder where you set the following variables 
 
 Additionally you can set these environment variables to customize behavior:
 
+- `BLUESKY_ATPROTO_PDS` = Custom PDS server for login (if not set use the default https://bsky.social)
 - `SIMULATE` = if set to "1" simulates the import by counting the tweets and indicating the estimated import time.
 - `MIN_DATE` = indicates the minimum date of tweets to import, ISO format (e.g. '2011-01-01' or '2011-02-09T10:30:49.000Z').
 - `MAX_DATE` = indicates the maximum date of tweets to import, ISO format (e.g. '2012-01-01' or '2014-04-09T12:36:49.328Z').
@@ -64,6 +65,7 @@ Additionally you can set these environment variables to customize behavior:
 - `VIDEO_UPLOAD_RETRIES` = set to the number of times to attempt to upload a video if JOB_STATE_FAILED encountered
 - `IGNORE_TWEET_IDS` = one or more Tweet IDs, comma separated. Tweets with these IDs are not imported.
 - `STRIP_IMAGE_METADATA` = if set to "1" will strip EXIF metadata from images before uploading them to Bluesky
+
 
 **Example of a `.env` file:**
 

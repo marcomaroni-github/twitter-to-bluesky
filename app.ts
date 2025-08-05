@@ -16,6 +16,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
+import { Mention } from '@atproto/api/dist/client/types/app/bsky/richtext/facet';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
@@ -35,7 +36,7 @@ const MAX_VIDEO_DURATION = 180; // Bluesky's limit in seconds
 dotenv.config();
 
 const agent = new AtpAgent({
-    service: 'https://bsky.social',
+    service: process.env.BLUESKY_ATPROTO_PDS ?? 'https://bsky.social',
 })
 
 let alreadySavedCache = false;
@@ -678,6 +679,12 @@ async function main() {
             default: process.env.BLUESKY_PASSWORD,
             demandOption: true,
         })
+        .option('bluesky-atproto-pds', {
+            type: 'string',
+            description: 'ATProto PDS Server',
+            default: process.env.BLUESKY_ATPROTO_PDS ?? 'https://bsky.social',
+            demandOption: true,
+        })
         .option('twitter-handles', {
             type: 'array',
             description: 'Twitter handles to import',
@@ -1041,7 +1048,7 @@ async function main() {
                     rt.facets = rt.facets.filter(facet => {
                         if (facet.features) {
                             facet.features = facet.features.filter(feature => {
-                                if (feature.$type === 'app.bsky.richtext.facet#mention' && !feature.did) {
+                                if (feature.$type === 'app.bsky.richtext.facet#mention' && !(feature as Mention).did) {
                                     return false;
                                 }
                                 return true;
@@ -1051,7 +1058,7 @@ async function main() {
                     });
                 }
                 const postRecord = {
-                    $type: 'app.bsky.feed.post',
+                    $type: 'app.bsky.feed.post' as const,
                     text: rt.text,
                     facets: rt.facets,
                     createdAt: tweet_createdAt,
