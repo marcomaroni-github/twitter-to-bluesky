@@ -36,7 +36,7 @@ const MAX_VIDEO_DURATION = 180; // Bluesky's limit in seconds
 dotenv.config();
 
 const agent = new AtpAgent({
-    service: 'https://bsky.social',
+    service: process.env.BLUESKY_ATPROTO_PDS ?? 'https://bsky.social',
 })
 
 let alreadySavedCache = false;
@@ -677,6 +677,12 @@ async function main() {
             type: 'string',
             description: 'Bluesky password',
             default: process.env.BLUESKY_PASSWORD,
+            demandOption: true,
+        })
+        .option('bluesky-atproto-pds', {
+            type: 'string',
+            description: 'ATProto PDS Server',
+            default: process.env.BLUESKY_ATPROTO_PDS ?? 'https://bsky.social',
             demandOption: true,
         })
         .option('twitter-handles', {
