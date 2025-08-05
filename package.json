@@ -14,7 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@atproto/api": "^0.13.12",
+    "@atproto/api": "^0.16.1",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
     "exiftool-vendored": "^29.0.0",

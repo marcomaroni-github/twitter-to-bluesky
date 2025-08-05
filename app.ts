@@ -16,6 +16,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 import { AppBskyVideoDefs, AtpAgent, BlobRef, RichText } from '@atproto/api';
+import { Mention } from '@atproto/api/dist/client/types/app/bsky/richtext/facet';
 
 import { getEmbeddedUrlAndRecord, getMergeEmbed, getReplyRefs } from './libs/bskyParams';
 import { checkPastHandles, convertToBskyPostUrl, getBskyPostUrl } from './libs/urlHandler';
@@ -1041,7 +1042,7 @@ async function main() {
                     rt.facets = rt.facets.filter(facet => {
                         if (facet.features) {
                             facet.features = facet.features.filter(feature => {
-                                if (feature.$type === 'app.bsky.richtext.facet#mention' && !feature.did) {
+                                if (feature.$type === 'app.bsky.richtext.facet#mention' && !(feature as Mention).did) {
                                     return false;
                                 }
                                 return true;
@@ -1051,7 +1052,7 @@ async function main() {
                     });
                 }
                 const postRecord = {
-                    $type: 'app.bsky.feed.post',
+                    $type: 'app.bsky.feed.post' as const,
                     text: rt.text,
                     facets: rt.facets,
                     createdAt: tweet_createdAt,
