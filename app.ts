@@ -260,7 +260,7 @@ function getTweets(archiveFolder: string){
 }
 
 function saveCache(sortedTweets) {
-    if (alreadySavedCache) {
+    if (alreadySavedCache || !sortedTweets) {
         return;
     }
 
