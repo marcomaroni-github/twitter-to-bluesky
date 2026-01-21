@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  twitter-bsky-migration:
+    container_name: twitter-bsky-migration
+    image: twitter-to-bluesky
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    volumes:
+      - /path/to/twitter-data:/twitter-data
+      # Optional
+      # - ./.env:./.env
+    environment:
+      BLUESKY_USERNAME: ${BLUESKY_USERNAME}
+      BLUESKY_PASSWORD: ${BLUESKY_PASSWORD}
+      TWITTER_HANDLES: ${TWITTER_HANDLES}
+      #Optional
+      # SIMULATE: ${SIMULATE}
+      # MIN_DATE: ${MIN_DATE}
+      # MAX_DATE: ${MAX_DATE}
+      # DISABLE_IMPORT_REPLY: ${DISABLE_IMPORT_REPLY}
+      # API_DELAY: ${API_DELAY}
+      # IGNORE_VIDEO_ERRORS: ${IGNORE_VIDEO_ERRORS}
+      # VIDEO_UPLOAD_RETRIES: ${VIDEO_UPLOAD_RETRIES}
